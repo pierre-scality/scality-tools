@@ -15,13 +15,15 @@ PRGNAME=os.path.basename(sys.argv[0])
 LENKEY=40
 COS='20'
 keylist=[]
+option={}
 
 def usage():
 	message="usage : "+PRGNAME
 	add="""
 	KEY
-	or 
-	-r (random key number)
+	or
+	-r (print replica along with key) 
+	-x NuMBER (random key number)
 """
 	print(message+add)
 
@@ -32,7 +34,7 @@ def parseargs(argv):
 	if len(argv)==1:
 		k=sys.argv[1] 
 	try:
-		opts, args = getopt.getopt(argv, "r:", ["help"])
+		opts, args = getopt.getopt(argv, "x:", ["help"])
 	except getopt.GetoptError:
 		print "Argument error"
 		usage()
@@ -44,10 +46,12 @@ def parseargs(argv):
 		if opt in ("-h", "--help"):
 			usage()
 			end(0)
-		elif opt == '-r':
+		elif opt == '-x':
 			for i in range(int(arg)):
 				k=KeyRandom(COS).getHexPadded()
 				keylist.append(k)
+		elif opt == '-s':
+			option.update(successor='yes')
 				
 	if len(args) > 0:
 		for i in args:
@@ -60,7 +64,16 @@ def printreplica(key):
 		local.append(i.getHexPadded())
 	return local
 
-#print sys.argv[1:]
+def node_init(ip,ring):
+	ringstat=s.supervisorConfigDso(dsoname=ring)
+	for n in ringstat['nodes']:
+        	nid = '%s:%s' % (n['ip'], n['chordport'])
+        	nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=ring)
+        if not node: node = nodes[nid]
+	return nodes
+
+
+
 parseargs(sys.argv[1:])
 rez=[]
 for i in keylist :
@@ -75,9 +88,7 @@ for i in keylist :
 		continue
 	rez=printreplica(k)
 	rez.append(i)
-	rez=sorted(rez,key=lambda d: d[38:])
+	rez=sorted(rez,key=lambda d: d[LENKEY-2:])
 	for j in rez:
 		print j,
 	print
-
-#print rez		
