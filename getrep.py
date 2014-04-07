@@ -103,7 +103,6 @@ if "ring" in option :
 	ring=option['ring']
 else:
 	ring='ring'
-print ring
 nodes={}
 nodestatus={}
 names={}
@@ -135,24 +134,24 @@ def main(key):
 	rez.append(key)
 	#rez=sorted(rez,key=lambda d: d[LENKEY-2:])
 	for K in rez:
+		DISPLAY=""
 		if 'successor' in option:
 			suc=node.findSuccessor(K)['address']
 			name=names[suc]
-			print K,name
-		elif 'status' in option:
+			DISPLAY=name
+		if 'status' in option:
 			suc=node.findSuccessor(K)['address']
 			n=nodes[suc]
 			status=n.checkLocal(K)
 			if status['status'] == 'free' :
-				print K,"NOTEXIST"
-				break	
-			if status['deleted'] == False :
-				print K,status['status'],"NOTDELETED",status['version']
+				DISPLAY=DISPLAY+" NOTEXIST "
+			elif status['deleted'] == False :
+				#print K,status['status'],"NOTDELETED",status['version']
+				DISPLAY=DISPLAY+" NOTDELETED "+str(status['version'])
 			else:
-				print K,status['status'],"DELETE",status['version']
-		else:
-			print K
-	print
+				#print K,status['status'],"DELETE",status['version']
+				DISPLAY=DISPLAY+" DELETE "+str(status['version'])
+		print K+" "+DISPLAY
 
 if 'file' in option:
 	file=option['file']

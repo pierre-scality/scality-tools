@@ -145,11 +145,12 @@ def main(key):
 	print "key status %s : %s " % (K,dummy)
 	if dummy == 'free' :
 		print "Original key %s does not exist" % K
-		return "KeyNotFound"
-	print "deleting original key"
-	node_o.chunkapiStoreOpPhysDelete(K)	
-	dummy=node_o.checkLocal(K)['status']
-	print "key status %s : %s " % (K,dummy)
+		#return "KeyNotFound"
+	else:
+		print "deleting original key"
+		node_o.chunkapiStoreOpPhysDelete(K)	
+		dummy=node_o.checkLocal(K)['status']
+		print "key status %s : %s " % (K,dummy)
 	start_rebuild=pred[:38]+'69'
 	ITERREB=10
 	print "rebuild key"
