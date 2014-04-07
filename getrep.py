@@ -18,16 +18,26 @@ COS='20'
 keylist=[]
 option={}
 sup ='http://127.0.0.1:5580'
-ring='ring1'
+#ring='ring1'
 dummy=[]
 file=None
 
 def usage():
-	message="usage : "+PRGNAME
+	message="""
+	Check for key is exist or not and print version
+	Replicas can be checked as well (-R option)
+
+
+	usage : """+PRGNAME
 	add="""
 	KEY
 	or
-	-s (print replica along with key) 
+	
+	-f file with a list of keys 	
+	-r ringname
+	-R Check for each key status of replicas
+	-s (print replica along with key)
+	-S print key information  
 	-x NuMBER (random key number)
 """
 	print(message+add)
@@ -39,7 +49,7 @@ def parseargs(argv):
 	if len(argv)==1:
 		k=sys.argv[1] 
 	try:
-		opts, args = getopt.getopt(argv, "Af:sr:x:", ["help"])
+		opts, args = getopt.getopt(argv, "Af:sSr:Rx:", ["help"])
 	except getopt.GetoptError:
 		print "Argument error"
 		usage()
@@ -60,9 +70,13 @@ def parseargs(argv):
 				k=KeyRandom(COS).getHexPadded()
 				keylist.append(k)
 		elif opt == '-r':
-			ring=arg
+			option.update(ring=arg)
+		elif opt == '-R':
+			option.update(replica='yes')
 		elif opt == '-s':
 			option.update(successor='yes')	
+		elif opt == '-S':
+			option.update(status='yes')	
 		elif opt == '-f':
 			file=arg 
 			try:
@@ -84,12 +98,18 @@ def printreplica(k):
 		local.append(i.getHexPadded())
 	return local
 
-
 parseargs(sys.argv[1:])
+if "ring" in option :
+	ring=option['ring']
+else:
+	ring='ring'
+print ring
 nodes={}
 nodestatus={}
 names={}
+status={}
 rez=[]
+#rez={}
 node=""
 s = Supervisor(url=sup)
 ringstat=s.supervisorConfigDso(action="view", dsoname=ring)
@@ -101,6 +121,7 @@ for n in ringstat['nodes']:
 	if not node: node = nodes[nid]
 
 def main(key):
+	rez=[]
 	try: 
 		k=Key(key) 
 	except ValueError:
@@ -109,7 +130,8 @@ def main(key):
 	if len(key) != LENKEY :
 		print "%s is not a valid Key length" % key
 		return()
-	rez=printreplica(k)
+	if 'replica' in option:
+		rez=printreplica(k)
 	rez.append(key)
 	#rez=sorted(rez,key=lambda d: d[LENKEY-2:])
 	for K in rez:
@@ -117,6 +139,17 @@ def main(key):
 			suc=node.findSuccessor(K)['address']
 			name=names[suc]
 			print K,name
+		elif 'status' in option:
+			suc=node.findSuccessor(K)['address']
+			n=nodes[suc]
+			status=n.checkLocal(K)
+			if status['status'] == 'free' :
+				print K,"NOTEXIST"
+				break	
+			if status['deleted'] == False :
+				print K,status['status'],"NOTDELETED",status['version']
+			else:
+				print K,status['status'],"DELETE",status['version']
 		else:
 			print K
 	print
