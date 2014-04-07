@@ -49,7 +49,7 @@ def parseargs(argv):
 	if len(argv)==1:
 		k=sys.argv[1] 
 	try:
-		opts, args = getopt.getopt(argv, "Af:sSr:Rx:", ["help"])
+		opts, args = getopt.getopt(argv, "Af:sSr:Rx:z", ["help"])
 	except getopt.GetoptError:
 		print "Argument error"
 		usage()
@@ -77,6 +77,8 @@ def parseargs(argv):
 			option.update(successor='yes')	
 		elif opt == '-S':
 			option.update(status='yes')	
+		elif opt == '-z':
+			option.update(zip='yes')	
 		elif opt == '-f':
 			file=arg 
 			try:
@@ -132,6 +134,9 @@ def main(key):
 	if 'replica' in option:
 		rez=printreplica(k)
 	rez.append(key)
+	zip=[]
+	PRESENT=0
+	NOTPRESENT=0
 	#rez=sorted(rez,key=lambda d: d[LENKEY-2:])
 	for K in rez:
 		DISPLAY=""
@@ -145,14 +150,26 @@ def main(key):
 			status=n.checkLocal(K)
 			if status['status'] == 'free' :
 				DISPLAY=DISPLAY+" NOTEXIST "
+				zip.append('N')
+				NOTPRESENT=NOTPRESENT+1
 			elif status['deleted'] == False :
 				#print K,status['status'],"NOTDELETED",status['version']
 				DISPLAY=DISPLAY+" NOTDELETED "+str(status['version'])
+				zip.append('Y')
+				PRESENT=PRESENT+1
 			else:
 				#print K,status['status'],"DELETE",status['version']
 				DISPLAY=DISPLAY+" DELETE "+str(status['version'])
-		print K+" "+DISPLAY
+				zip.append('Y')
+				PRESENT=PRESENT+1
+		if 'zip' not in  option:
+			print K+" "+DISPLAY
 
+	if 'zip' in option:
+		s=""
+		for i in zip:
+			s=s+i
+		print K+":"+str(PRESENT)+":"+str(NOTPRESENT)+":"+s
 if 'file' in option:
 	file=option['file']
 
