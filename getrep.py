@@ -155,7 +155,7 @@ def main(key):
 			elif status['deleted'] == False :
 				#print K,status['status'],"NOTDELETED",status['version']
 				DISPLAY=DISPLAY+" NOTDELETED "+str(status['version'])
-				zip.append('Y')
+				zip.append('D')
 				PRESENT=PRESENT+1
 			else:
 				#print K,status['status'],"DELETE",status['version']
