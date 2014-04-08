@@ -86,6 +86,11 @@ def printreplica(k):
 		local.append(i.getHexPadded())
 	return local
 
+def getpred(k):
+	for i in k.getReplicas():
+		last=i
+	return i	
+
 parseargs(sys.argv[1:])
 if "ring" in option :
 	ring=option['ring']
@@ -128,14 +133,10 @@ def main(key):
 	rez.append(K)
 	for i in rez:
 		d[i[38:]]=i
-	if COS=='70':
-		pred=d[max(d.keys())]
-	elif COS=='75':
-		pred=d['70']
-	else:	
-		j=int(COS)-1
-		j=str(j)
-		pred=d[j]	
+	MAX=max(d.keys())
+	#print MAX
+	#print d 
+	pred=getpred(k)
 	original=node.findSuccessor(K)['address']
 	predecessor=node.findSuccessor(pred)['address']
 	print "original %s %s : pred %s %s" % (K,original,pred,predecessor)
