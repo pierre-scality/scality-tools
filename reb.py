@@ -91,6 +91,10 @@ def getpred(k):
 		last=i
 	return i	
 
+def p(k):
+	return k.getHexPadded()
+
+
 parseargs(sys.argv[1:])
 if "ring" in option :
 	ring=option['ring']
@@ -113,62 +117,52 @@ for n in ringstat['nodes']:
 	nodestatus[nid]=nodes[nid].nodeGetStatus()[0]
 	if not node: node = nodes[nid]
 
+# MAJ is for Key/Node type 
+#LOWER is for str type
 def main(key):
 	rez=[]
-	K=key
 	try: 
-		k=Key(key) 
+		KEY=Key(key) 
 	except ValueError:
 		print "%s is not a valid Key" % key
 		return()
 	if len(key) != LENKEY :
 		print "%s is not a valid Key length" % key
 		return()
-	if 'replica' in option:
-		rez=printreplica(k)
-	rez.append(key)
-	d={}
-	COS=K[38:]
-	rez=printreplica(k)	
-	rez.append(K)
-	for i in rez:
-		d[i[38:]]=i
-	MAX=max(d.keys())
-	#print MAX
-	#print d 
-	pred=getpred(k)
-	original=node.findSuccessor(K)['address']
-	predecessor=node.findSuccessor(pred)['address']
-	print "original %s %s : pred %s %s" % (K,original,pred,predecessor)
-	node_o=nodes[original]
-	node_p=nodes[predecessor]
-	dummy=node_o.checkLocal(K)['status']
-	print "key status %s : %s " % (K,dummy)
+	#d={}
+	PRED=getpred(KEY)
+	pred=p(PRED)	
+	nodekey=node.findSuccessor(KEY)['address']
+	nodepred=node.findSuccessor(PRED)['address']
+	print "original %s %s : pred %s %s" % (key,nodekey,pred,nodepred)
+	NODEKEY=nodes[nodekey]
+	NODEPRED=nodes[nodepred]
+	dummy=NODEKEY.checkLocal(KEY)['status']
+	print "key status %s : %s " % (key,dummy)
 	if dummy == 'free' :
-		print "Original key %s does not exist" % K
+		print "Original key %s does not exist" % key
 		#return "KeyNotFound"
 	else:
 		print "deleting original key"
-		node_o.chunkapiStoreOpPhysDelete(K)	
-		dummy=node_o.checkLocal(K)['status']
-		print "key status %s : %s " % (K,dummy)
-	start_rebuild=pred[:38]+'69'
-	ITERREB=10
+		NODEKEY.chunkapiStoreOpPhysDelete(KEY)	
+		dummy=NODEKEY.checkLocal(KEY)['status']
+		print "key status %s : %s " % (key,dummy)
+	start_rebuild=pred[:38]+'70'
+	ITERREB=20
 	print "rebuild key"
-	node_p.nodeRebuild(start_rebuild,ITERREB)
+	NODEPRED.nodeRebuild(start_rebuild,ITERREB)
 	print "rebuild done" 
 	T=3
 	t=0
 	while t < T : 	
-		dummy=node_o.checkLocal(K)['status']
+		dummy=NODEKEY.checkLocal(KEY)['status']
 		if dummy == 'free' :
 			print "Status is free, waiting"
 			time.sleep(0.5)
 			t = t + 1
 		else:
-			print "key status %s : %s " % (K,dummy)
 			break
-	print "key status %s : %s " % (K,dummy)
+	print "key status %s : %s " % (key,dummy)
 	
 
 	
