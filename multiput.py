@@ -1,4 +1,4 @@
-
+#!/usr/bin/python2
 """
 Get the URL and acces site
 Gives summary of page load and size
@@ -10,15 +10,20 @@ import urllib2
 import sys
 import os
 import getopt 
-from BeautifulSoup import BeautifulSoup
+import subprocess
 
 PRGNAME=os.path.basename(sys.argv[0])
 #print PRGNAME
-URL='http://onair-pprd.corp.airliquide.com/'
+
+SLEEP=0.1
+URI="cdmi1/blob2/"
+OP="PUT"
+
+URL='http://'+URI
+
 
 def __print(level,prgname,message,option=""): 
 	print '%30s : %10s : %30s' % (level,prgname,message)
-
 
 def usage():
 	global PRGNAME
@@ -70,14 +75,27 @@ except urllib2.HTTPError as e:
 	print "read",e.read() 
 	print "len",len(e.read())
 else:
-	soup=BeautifulSoup(page)
-	# At this step soup contains the cleaned source html code
-	#print soup
-	#print dir(req)
-	SIZE=len(page.read())
-	CODE=page.getcode()
-	print "code: %s , size : %s" % (CODE,SIZE)
+	code=page.getcode()
+	print "return code "+str(code)
+	if str(code)[0] != "2" :
+		print "page not accessible "+str(code)
 
-print "Image list :"
-for line in soup.findAll('img') :
-	print line	
+cmd="/usr/bin/find"
+cmd="/usr/bin/find . -type f" 
+#(output, err) = p.communicate()
+count=0
+ps=subprocess.Popen(cmd, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+# shell=True)
+while True:
+	if ps.poll() != None:
+		break
+	try:
+		# fsarchiver do write on stderr
+		nextline = next(ps.stdout)
+	except StopIteration:
+		break
+	count+=1
+	line=nextline.decode('utf-8').rstrip('\n')
+	print str(count)+" "+line
+
+
