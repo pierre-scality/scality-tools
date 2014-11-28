@@ -21,6 +21,7 @@ def usage(code=0):
         add="""
         -f supervisor ringStatus format file
         -F sprov ringsh.txt format file
+        -v print more informations
 """
         print(message+add)
         if __name__ != "__main__":
@@ -35,7 +36,7 @@ def parseargs(argv):
         if len(argv)==1:
                 k=sys.argv[1] 
         try:
-                opts, args = getopt.getopt(argv, "hf:F:", ["help"])
+                opts, args = getopt.getopt(argv, "hf:F:v", ["help"])
         except getopt.GetoptError:
                 print "Argument error"
                 usage()
@@ -47,13 +48,14 @@ def parseargs(argv):
                         files[arg]='T1'
                 elif opt == '-F':
                         files[arg]='T2'
+                elif opt == '-v':
+                        option['verbose']=1
 
 
-
+option={}
 files={}
 parseargs(sys.argv[1:])
 keyspace=[]
-node={}
 FF='F'*40
 
 # T1 type supervisor ringStatus (need to strip on Node:)
@@ -126,31 +128,36 @@ for file in files.keys():
     keyspace.load(file,files[file])
 
 keyspace.ordered()
-keyspace.show()
-#['B8E38E39AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA80', '172.27.206.133:8085', 'bgsc409142-node2', 'bgsc409142']
+if 'verbose' in option.keys():
+    print 'Sorted keyspace'
+    keyspace.show()
+    #['B8E38E39AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA80', '172.27.206.133:8085', 'bgsc409142-node2', 'bgsc409142']
 
 serverkey={}
-# serverkey[server]=[nb,??]
 
+print 'Key per node'
 for i in range(keyspace.size()):
         # Calculate keyrange
         # Last element add K to 0 then 0 to first K.
         #if i == len(keyspace)-1:
-        if i == keyspace.size()-1:
-            succ=keyspace.show(i)[0]
-            nb=int(FF,16)-int(keyspace.show(i)[0],16)+int(keyspace.show(0)[0],16)
+        assigned=keyspace.show(i)[0]
+        if i == 0:
+            pred=keyspace.show(keyspace.size()-1)[0]
+            keyrange=int(FF,16)-int(pred,16)+int(assigned,16)
         else:
-            succ=keyspace.show(i+1)[0]
-            #succ=keyspace[i+1][0]
-            nb=int(succ,16)-int(keyspace.show(i)[0],16)
-        # if node name exist diaplay else display ip:port
+            pred=keyspace.show(i-1)[0]
+            keyrange=int(assigned,16)-int(pred,16)
+        # if node name exist display else display ip:port
         ### >>> check if entry already exists
-        if keyspace.show(i) not in serverkey.keys():
-            serverkey[keyspace.show(i)[0]]=nb
-            serverkey[keyspace.show(i)[3]]=keyspace.show(i)[0]
+        if keyspace.show(i)[3] not in serverkey.keys():
+            serverkey[keyspace.show(i)[3]]=keyrange
         else:
-            serverkey[keyspace.show(i)]=serverkey[node[keyspace.show(i)]]+nb
-        print keyspace.show(i)[2],"\t",keyspace.show(i)[0],succ,nb
+            serverkey[keyspace.show(i)[3]]+=keyrange
+        print keyspace.show(i)[2],"\t",keyspace.show(i)[0],pred,keyrange
+
+print 'key per server'
+for server in serverkey.keys():
+    print "{0:20s} : {1}".format(server,serverkey[server])
 
 if __name__ == "__main__":
     exit()
