@@ -17,16 +17,19 @@ supervisor nodeAssignId RING Server10 8085 CE38E38EAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 """
 
 def usage(code=0):
-        message="usage : "+PRGNAME
+        message="usage : "+PRGNAME 
         add="""
+        Calculate number of assigned keys par server from 2 type of files 
+        Support mulutiple -f/-F (but files must be coherent)
         -f supervisor ringStatus format file
         -F sprov ringsh.txt format file
         -v print more informations
+
+        One can use -f <current ringstatus> -F <sprov generated keys with update> to see see keys after adding new nodes (files must be coherent)
 """
         print(message+add)
-        if __name__ != "__main__":
-            #exit(code)
-            print "exit"
+        if __name__ == "__main__":
+            exit(code)
 
 def parseargs(argv):
         if len(argv)==0:
@@ -74,7 +77,6 @@ class KS:
                 return self.keyspace
             if type == 'T1':
                 if el[0] != 'Node:':
-                    #print "not Node: "+str(line)
                     return self
                 this.append(el[3])
                 this.append(el[2])
@@ -89,7 +91,6 @@ class KS:
                 #this.append(None)
                 this.append(el[3])
                 self.keyspace.append(this)
-            #print this
             return self.keyspace
         
         def ordered(self):
@@ -98,7 +99,6 @@ class KS:
         def show(self,entry=-1):
             if entry == -1:
                 for el in self.keyspace:
-                    #print el
                     print "{0:45s}{1:45s}{2:45s}{3}".format(el[0],el[1],el[2],el[3])
             else:
                 return self.keyspace[entry]
@@ -133,13 +133,11 @@ if 'verbose' in option.keys():
     keyspace.show()
     #['B8E38E39AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA80', '172.27.206.133:8085', 'bgsc409142-node2', 'bgsc409142']
 
+# serverkey is to count the # of keys per server
 serverkey={}
 
 print 'Key per node'
 for i in range(keyspace.size()):
-        # Calculate keyrange
-        # Last element add K to 0 then 0 to first K.
-        #if i == len(keyspace)-1:
         assigned=keyspace.show(i)[0]
         if i == 0:
             pred=keyspace.show(keyspace.size()-1)[0]
@@ -147,8 +145,6 @@ for i in range(keyspace.size()):
         else:
             pred=keyspace.show(i-1)[0]
             keyrange=int(assigned,16)-int(pred,16)
-        # if node name exist display else display ip:port
-        ### >>> check if entry already exists
         if keyspace.show(i)[3] not in serverkey.keys():
             serverkey[keyspace.show(i)[3]]=keyrange
         else:
@@ -157,7 +153,7 @@ for i in range(keyspace.size()):
 
 print 'key per server'
 for server in serverkey.keys():
-    print "{0:20s} : {1}".format(server,serverkey[server])
+    print "{0:20s} {1}".format(server,serverkey[server])
 
 if __name__ == "__main__":
     exit()
