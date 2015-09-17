@@ -57,7 +57,6 @@ def parseargs(argv):
 	for i,el in enumerate(opts):
 		if '-d' in el:
 			opts.pop(i)
-	
 	for opt, arg in opts:
 		dummy.append(opt)
 		if opt in ("-h", "--help"):
@@ -65,10 +64,14 @@ def parseargs(argv):
 			end(0)
 		elif opt == '-A':
 			option.update(auto=1)
+		elif opt == '-l':
+			option.update(login=arg)
 		elif opt == '-x':
 			for i in range(int(arg)):
 				k=KeyRandom(COS).getHexPadded()
 				keylist.append(k)
+		elif opt == '-p':
+			option.update(p=arg)
 		elif opt == '-r':
 			option.update(ring=arg)
 		elif opt == '-R':
@@ -105,6 +108,17 @@ if "ring" in option :
 	ring=option['ring']
 else:
 	ring='ring'
+
+if 'login' in option:
+	login=option['login']
+else:
+	login='root'
+
+if 'p' in option:
+	password=option['p']
+else:
+	password='admin'
+
 nodes={}
 nodestatus={}
 names={}
@@ -116,7 +130,7 @@ s = Supervisor(url=sup,login=login,passwd=password)
 ringstat=s.supervisorConfigDso(action="view", dsoname=ring)
 for n in ringstat['nodes']:
 	nid = '%s:%s' % (n['ip'], n['chordport'])
-	nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=ring)
+	nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=ring, login=login, passwd=password)
 	names[nid]=n['name']
 	nodestatus[nid]=nodes[nid].nodeGetStatus()[0]
 	if not node: node = nodes[nid]
