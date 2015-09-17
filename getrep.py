@@ -17,7 +17,7 @@ LENKEY=40
 COS='20'
 keylist=[]
 option={}
-sup ='http://127.0.0.1:5580'
+sup ='https://127.0.0.1:2443'
 #ring='ring1'
 dummy=[]
 file=None
@@ -49,7 +49,7 @@ def parseargs(argv):
 	if len(argv)==1:
 		k=sys.argv[1] 
 	try:
-		opts, args = getopt.getopt(argv, "Af:sSr:Rx:z", ["help"])
+		opts, args = getopt.getopt(argv, "Af:sSl:p:r:Rx:z", ["help"])
 	except getopt.GetoptError:
 		print "Argument error"
 		usage()
@@ -112,7 +112,7 @@ status={}
 rez=[]
 #rez={}
 node=""
-s = Supervisor(url=sup)
+s = Supervisor(url=sup,login=login,passwd=password)
 ringstat=s.supervisorConfigDso(action="view", dsoname=ring)
 for n in ringstat['nodes']:
 	nid = '%s:%s' % (n['ip'], n['chordport'])
