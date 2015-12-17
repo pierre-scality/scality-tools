@@ -1,6 +1,6 @@
 #!/bin/bash
 
-RING=OWRING
+RING=OWPROD
 
 N=None
 SUB=supervisor 
@@ -10,6 +10,7 @@ TYPE=null
 ONCE=0
 LAZY=0
 PART=none
+AUTO=0 
 
 function disp() { 
 MSG=$1 
@@ -29,6 +30,29 @@ exit
 
 trap end 9 15 
 
+standard_conf_sup() {
+A="move_auto join_auto rebuild_auto chordpurge_enable"
+for i in $A ; 
+do
+	if [ ${CHECK:=0} -eq 0 ]; then
+		O='-f' 
+	fi
+	$0 $O ring get $i 
+done
+exit 0 
+}
+
+get_status() {
+GREP=$1
+case $GREP in 
+	Node:) 		FIELD=5;;
+	Connector:)	FIELD=4 ;; 
+	*) disp error "get_status invalid param $GREP"
+	   exit 9 
+esac
+ringsh supervisor ringStatus $RING | grep $GREP |cut -d  " " -f 2,${FIELD}- 
+exit 0
+}
 
 function usage() {
 cat << fin
@@ -38,6 +62,7 @@ cat << fin
 	arg is the argument to run
 
 	OPTION 
+	-a	:	Get auto parameter and exit
 	-d 	:	shell debug mode
 	-f	:	By default script is displaying command use -f to force the command to run
 	-r	:	ring name
@@ -47,6 +72,9 @@ cat << fin
 	By default script shows command (NOT EXECUTION).
 	To execute command use the above -f option or set variable export RRUN=0 from your shell.
 	At execution time component name is shows at each execution line	
+
+	Auto parameter is a list of parameters that will all be processed with just auto option.
+	
 
 	Sample :
 	Get node log setting :	$(basename $0) -1 node get log ( "log" must be a part of ov_XXXXX_YYYY of ringsh)
@@ -61,9 +89,10 @@ then
 fi
 
 
-while getopts dflr:s1 sarg
+while getopts adflr:s1 sarg
 do
 case $sarg in
+	a)	AUTO=1 ;; 
 	f)	CHECK=0 ;; 
 	d)	set -x ;;
 	h)	usage 
@@ -101,6 +130,7 @@ case $TYPE in
 	rest|accessor|connector)			
 		GREP=Connector:
 		SUB=accessor ;;
+	ring)	GREP=ring;;
 	*)
 		disp ERROR "Type unknown"
 		usage
@@ -110,7 +140,34 @@ esac
 
 
 CMD_LEN=$(echo $CMD | wc -w) 
-case $OP in 
+if [ $GREP == ring ] ; 
+then
+	if [ $AUTO -eq 1 ] ;
+	then
+		standard_conf_sup
+	fi
+	PART=$(echo $CMD|cut -d ' ' -f 2) 
+	CMD=$(echo $CMD|cut -d ' ' -f 1)
+	case $OP in 
+		get)	REAL_OP=ringConfigGet
+			RUN="/usr/local/bin/ringsh -r $RING $SUB $REAL_OP $RING $CMD"  ;;
+		set)	REAL_OP=ringConfigSet
+			RUN="/usr/local/bin/ringsh -r $RING $SUB $REAL_OP $RING $CMD $PART"  ;;
+	esac
+	if [ ${CHECK:=1} -eq 1 ];
+	then
+        	echo "Ring : $RUN"
+	else
+        	eval $RUN | sed s/^/ring:\\t/
+		if [ ${OP:=get} == "set" ] ; 
+		then
+			/usr/local/bin/ringsh -r $RING $SUB ringConfigGet $RING $CMD
+		fi
+	fi
+exit 0
+fi
+
+case ${OP:=NULL}  in 
 	get) REAL_OP=configGet
 		case $CMD_LEN in
 			0)	ONCE=1 ;; 
@@ -126,10 +183,14 @@ case $OP in
 			exit 2
 		fi
 		;;
-	*)   DISP "ERROR" "unknow operator $OP"
+	status) get_status $GREP ;;
+	NULL) disp "error" "Operator missing" 
+	      exit 1 
+	*)   disp "ERROR" "unknow operator $OP"
 	     usage
 	     exit 1  ;;	
 esac
+	
 
 for i in $(ringsh supervisor ringStatus $RING | grep $GREP | awk '{print $2}');
 do
