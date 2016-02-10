@@ -32,6 +32,13 @@ def get_name(type='file',arg1=""):
         #print host+":"+ip.rstrip()  
         #d[host]=ip.rstrip()
         d[ip.rstrip().lstrip()]=host
+  elif type == 'ringsh' : 
+    cmd="ringsh supervisor serverList |awk '{print $5,$7}' | sed s/:.*//"
+    p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+    for line in p.stdout.readlines():
+      print line
+      (host,ip)=line.split(",")
+      d[ip.rstrip().lstrip()]=host
   return d
 
 def get_running_ks(hostfile):
@@ -51,7 +58,8 @@ def get_running_ks(hostfile):
   return newks
 
 # Build list of name:ip dict
-name=get_name('file',source_name)
+#name=get_name('file',source_name)
+name=get_name('ringsh')
 
 
 with open(ringsh) as f:
