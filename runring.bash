@@ -1,6 +1,6 @@
 #!/bin/bash
 
-RING=OWPROD
+RING=DATA
 
 N=None
 SUB=supervisor 
@@ -8,7 +8,7 @@ CAT=
 CHECK=1
 TYPE=null
 ONCE=0
-LAZY=0
+LOG=0
 PART=none
 AUTO=0 
 
@@ -63,6 +63,7 @@ cat << fin
 
 	OPTION 
 	-a	:	Get auto parameter and exit
+	-l	:	Log settings 
 	-d 	:	shell debug mode
 	-f	:	By default script is displaying command use -f to force the command to run
 	-r	:	ring name
@@ -97,7 +98,7 @@ case $sarg in
 	d)	set -x ;;
 	h)	usage 
 		exit 0 ;;
-	l)	LAZY=1 ;;
+	l)	LOG=1 ;;
 	r)	RING=$OPTARG ;;
 	s)	SILENT=1 ;;
 	1)	ONCE=1 ;;
@@ -168,14 +169,26 @@ exit 0
 fi
 
 case ${OP:=NULL}  in 
-	get) REAL_OP=configGet
+	get|logget) 
+		if [ $OP == "get" ] ;
+		then
+			REAL_OP=configGet
+		else
+			REAL_OP=logLevelGet
+		fi
 		case $CMD_LEN in
 			0)	ONCE=1 ;; 
 			2)	PART=$(echo $CMD|cut -d ' ' -f 2) 
 				CMD=$(echo $CMD|cut -d ' ' -f 1);;
 		esac
 		;;	
-	set) REAL_OP=configSet 	
+	set|logset) 
+		if [ $OP == "set" ] ;
+                then
+			REAL_OP=configSet 	
+		else
+			REAL_OP=logLevelSet
+		fi
 		if [ $CMD_LEN -le 1 ];
 		then
 			echo "Missing parameter for Set"
@@ -185,7 +198,7 @@ case ${OP:=NULL}  in
 		;;
 	status) get_status $GREP ;;
 	NULL) disp "error" "Operator missing" 
-	      exit 1 
+	      exit 1 ;;
 	*)   disp "ERROR" "unknow operator $OP"
 	     usage
 	     exit 1  ;;	
