@@ -18,7 +18,7 @@ shift
 ALL=$*
 if [ ${SILENT:=0} -eq 0 ] ; 
 then
-	MSG=$(echo $MSG | tr [[:lower:]] [[:upper:]])
+	MSG=$(echo $MSG | tr [:lower:] [:upper:])
 	echo "$MSG :	$ALL"
 fi
 }
@@ -120,8 +120,8 @@ then
 	CHECK=-1
 fi
 
-TYPE=$(echo $TYPE|tr [[:upper:]] [[:lower:]])
-OP=$(echo $OP|tr [[:upper:]] [[:lower:]])
+TYPE=$(echo $TYPE|tr [:upper:] [:lower:])
+OP=$(echo $OP|tr [:upper:] [:lower:])
 
 
 case $TYPE in
