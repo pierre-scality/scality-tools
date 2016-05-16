@@ -36,7 +36,6 @@ def get_name(type='file',arg1=""):
     cmd="ringsh supervisor serverList |awk '{print $5,$7}' | sed s/:.*//"
     p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
     for line in p.stdout.readlines():
-      print line
       (host,ip)=line.split(",")
       d[ip.rstrip().lstrip()]=host
   return d
