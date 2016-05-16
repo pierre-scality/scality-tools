@@ -8,7 +8,7 @@ CAT=
 CHECK=1
 TYPE=null
 ONCE=0
-LOG=0
+LAZY=0
 PART=none
 AUTO=0 
 
@@ -18,7 +18,7 @@ shift
 ALL=$*
 if [ ${SILENT:=0} -eq 0 ] ; 
 then
-	MSG=$(echo $MSG | tr [:lower:] [:upper:])
+	MSG=$(echo $MSG | tr [[:lower:]] [[:upper:]])
 	echo "$MSG :	$ALL"
 fi
 }
@@ -63,7 +63,6 @@ cat << fin
 
 	OPTION 
 	-a	:	Get auto parameter and exit
-	-l	:	Log settings 
 	-d 	:	shell debug mode
 	-f	:	By default script is displaying command use -f to force the command to run
 	-r	:	ring name
@@ -98,7 +97,7 @@ case $sarg in
 	d)	set -x ;;
 	h)	usage 
 		exit 0 ;;
-	l)	LOG=1 ;;
+	l)	LAZY=1 ;;
 	r)	RING=$OPTARG ;;
 	s)	SILENT=1 ;;
 	1)	ONCE=1 ;;
@@ -120,8 +119,8 @@ then
 	CHECK=-1
 fi
 
-TYPE=$(echo $TYPE|tr [:upper:] [:lower:])
-OP=$(echo $OP|tr [:upper:] [:lower:])
+TYPE=$(echo $TYPE|tr [[:upper:]] [[:lower:]])
+OP=$(echo $OP|tr [[:upper:]] [[:lower:]])
 
 
 case $TYPE in
@@ -169,26 +168,14 @@ exit 0
 fi
 
 case ${OP:=NULL}  in 
-	get|logget) 
-		if [ $OP == "get" ] ;
-		then
-			REAL_OP=configGet
-		else
-			REAL_OP=logLevelGet
-		fi
+	get) REAL_OP=configGet
 		case $CMD_LEN in
 			0)	ONCE=1 ;; 
 			2)	PART=$(echo $CMD|cut -d ' ' -f 2) 
 				CMD=$(echo $CMD|cut -d ' ' -f 1);;
 		esac
 		;;	
-	set|logset) 
-		if [ $OP == "set" ] ;
-                then
-			REAL_OP=configSet 	
-		else
-			REAL_OP=logLevelSet
-		fi
+	set) REAL_OP=configSet 	
 		if [ $CMD_LEN -le 1 ];
 		then
 			echo "Missing parameter for Set"
@@ -196,9 +183,12 @@ case ${OP:=NULL}  in
 			exit 2
 		fi
 		;;
+	run)	REAL_OP=""
+		#CHECK=1 # still dev for never run		
+		;;
 	status) get_status $GREP ;;
 	NULL) disp "error" "Operator missing" 
-	      exit 1 ;;
+	      exit 1 ;; 
 	*)   disp "ERROR" "unknow operator $OP"
 	     usage
 	     exit 1  ;;	
@@ -230,3 +220,4 @@ done
 
 
 #for i in $(ringsh -r OWRING supervisor ringStatus OWRING |grep 8184 | sed s/:8184// | awk '{print $3}' ) ;  do sed -i s/.*pierre.*/$i\\tpierre.dlx1.msg.in.telstra.com.au\\tdlx1.msg.in.telstra.com.au/ /etc/hosts ; echo getent hosts pierre.dlx1.msg.in.telstra.com.au; ping -c 1 pierre.dlx1.msg.in.telstra.com.au ; s3cmd put /etc/hosts  S3://pierre/ ; sleep 1  ; done
+
