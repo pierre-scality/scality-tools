@@ -48,17 +48,28 @@ login="root"
 password="admin"
 
 
-parser = ArgumentParser(description='Run ringsh commands on single or all components') 
+#parser = ArgumentParser(description='Run ringsh commands on single or all components') 
+parser = ArgumentParser(description='''
+Run ringsh commands on single or several target
+
+Sample commands :
+rr.py node get   ==> Will display all nodes parameter on a single random node
+rr.py rs2 get   ==> Will display all rs2 connector  parameter on a single random (accept rs2/res/accessor/conn/connector keyword)
+rr.py ring get rebuild   ==> will display ring parameter matching rebuild
+rr.py -a -f -r META node set 
+
+''') 
 
 parser.add_argument('-a', '--all', help='Loop on all servers', action="store_true", default=False)
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
-parser.add_argument('-D', '--debuglevel', nargs=1, help='Choose debug level see https://docs.python.org/2/library/logging.html')
-parser.add_argument('-f', '--force', action="store_true", help='force', default=RUN_EXEC)
+#parser.add_argument('-D', '--debuglevel', nargs=1, help='Choose debug level see https://docs.python.org/2/library/logging.html')
+parser.add_argument('-f', '--force', action="store_true", help='force execution on set commands', default=RUN_EXEC)
 parser.add_argument('-l', '--login', nargs='?', help='login', const=login, default=login)
 parser.add_argument('-L', '--logset', action="store_true", help='logset', default=RUN_LOG)
 parser.add_argument('-p', '--password', nargs='?', help='password', const=password, default=password)
-parser.add_argument('-r', '--ring-name', nargs='?', help='ring name', const='DATA', default='DATA')
+parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default='DATA')
 parser.add_argument('-s', '--server-name', nargs=1, help='run on a single defined node')
+
 
 args,cli=parser.parse_known_args()
 if args.debug==True:
@@ -111,13 +122,15 @@ class ring_op():
 
   def get_target(self):
     server_list=[]
-    #print 'target'+str(self.target)
+    print 'target'+str(self.target)+self.grep
     if self.method == "ringsh":
       grep=self.grep+':'
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+"| grep "+grep 
+      print cmd
       p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       for line in p.stdout.readlines():
         current=line.split(" ")[1]
+        print current
         if self.target  == "ALL":
           server_list.append(current)
           continue
@@ -143,6 +156,7 @@ class ring_op():
       self.grep="State"
     elif self.comp in CONN:
       self.sub="accessor"
+      self.comp="accessor"
       self.grep="Connector"
     elif self.comp in NODE:
       self.sub="node"
@@ -225,6 +239,7 @@ class ring_op():
       return(0)
     elif self.comp in ('accessor','node') :
       against=self.get_target()
+      logging.debug("running command")
       if self.op == 'cat':
         cmd="ringsh -r "+self.ring+" -u "+against[0]+" "+self.sub+" configGet "
         p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
