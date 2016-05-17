@@ -122,15 +122,12 @@ class ring_op():
 
   def get_target(self):
     server_list=[]
-    print 'target'+str(self.target)+self.grep
     if self.method == "ringsh":
       grep=self.grep+':'
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+"| grep "+grep 
-      print cmd
       p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       for line in p.stdout.readlines():
         current=line.split(" ")[1]
-        print current
         if self.target  == "ALL":
           server_list.append(current)
           continue
@@ -165,7 +162,8 @@ class ring_op():
       logger.info("Invalid command "+self.comp)
       raise ValueError("Type not valid ")
       exit(1)
-    self.get_target()
+    if not self.comp == "ring":
+      self.get_target()
      
   """" Check and replace cli options to define the proper one """ 
   def option_check(self):
