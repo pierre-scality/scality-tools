@@ -122,12 +122,14 @@ class ring_op():
 
   def get_target(self):
     server_list=[]
+    #print 'target'+str(self.target)+self.grep
     if self.method == "ringsh":
       grep=self.grep+':'
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+"| grep "+grep 
       p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       for line in p.stdout.readlines():
-        current=line.split(" ")[1]
+        current=line.split(" ")[1].rstrip(',')
+        print "Ring status is : "+current
         if self.target  == "ALL":
           server_list.append(current)
           continue
@@ -162,8 +164,7 @@ class ring_op():
       logger.info("Invalid command "+self.comp)
       raise ValueError("Type not valid ")
       exit(1)
-    if not self.comp == "ring":
-      self.get_target()
+    self.get_target()
      
   """" Check and replace cli options to define the proper one """ 
   def option_check(self):
@@ -181,7 +182,7 @@ class ring_op():
     if self.sub=="node":
       if self.op not in NODEOPS:
         logger.info("node command must be in "+str(NODEOPS))
-        raise ValueError("Command not valid")
+        exit(5)
       elif self.op in NODEOP_R:
         self.ring_op_get()
       else:
@@ -216,6 +217,7 @@ class ring_op():
           print label+" : "+line 
 
   def ring_op_get(self):
+    logging.debug("Entering function ring_op_get")
     if self.comp  == 'ring' and self.op == 'status':
       cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| head -4"
       logging.debug("run ring status command : "+cmd)
@@ -224,7 +226,7 @@ class ring_op():
         print line.rstrip()
       return(0)
     elif self.comp == 'ring' and self.op in ('heal','get'):
-      cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring
+      cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring+" | grep -v Load"
       logging.debug("run command ring health|get : "+cmd)
       p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       for line in p.stdout.readlines():
