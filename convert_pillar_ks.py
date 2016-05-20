@@ -2,20 +2,56 @@
 
 import yaml 
 import os 
+import sys
 import subprocess 
+import getopt
 
 name={}
 newks={}
 runningks={}
 pillar={}
 
+
+ring='DATA'
+
+def usage():
+  print sys.argv[0]+" ringsh file"
+  print "Ring name must be specified with -r ringname"
+  exit(0)
+
+if (len(sys.argv) < 2) :
+  usage()
+  exit(5)
+else:
+ argv=sys.argv 
+
+
+try:
+  opts, args = getopt.getopt(sys.argv[1:], "hr:", ["help", "grammar="])
+except getopt.GetoptError:          
+        usage()                         
+        exit(2) 
+
+for opt, arg in opts:
+  if opt in ("-h", "--help"):
+    usage()                     
+    exit()   
+  elif opt in ('-r'):
+    ringsh=arg
+  else:
+    print "Argument error : "+arg
+    usage
+    exit(1)
+
+ringsh=args[0]
+
 source_name="temp" 
-ringsh="./ringsh.OWPROD-v1.txt"
 pillar_file="/srv/scality/pillar/scality-common.sls"
 output="/tmp/"+pillar_file.split('/')[-1]
 
-ring='OWPROD'
-#scality.keyspace.ring
+if not os.path.isfile(ringsh):
+  print "ERROR : cant open sprov ringsh file"+ringsh
+  exit(9)
 
 if os.path.isfile(output):
   print "WARNING : "+"Output file already exist"
