@@ -15,13 +15,11 @@ from scality.daemon import DaemonFactory , ScalFactoryExceptionTypeNotFound
 PRGNAME=os.path.basename(sys.argv[0])
 PHYS=False
 LENKEY=40
-COS='20'
 keylist=[]
 option={}
 sup ='https://127.0.0.1:2443'
 #ring='ring1'
 dummy=[]
-file=None
 
 def usage():
 	message="""
@@ -139,11 +137,8 @@ if 'verbose' in option:
 else:
 	verbose=False
 
-filename='/tmp/toto'
-psfile=filename+'.'+str(os.getpid())
-fd=open(psfile,'w+')
 #nodes[nid].listKeys(fd)
-targetn.listKeys(fd)
+#targetn.listKeys(fd)
 if 'count' in option:
 	max=int(option['count'])
 	limit=True
@@ -151,12 +146,9 @@ else:
 	print 'no limit'
 	limit=False
 count=0
-fd.close()
-fd=open(psfile,'r')
 a=0
 stime=time.time()
-while True:
-	i=fd.readline()
+for i in targetn.listKeysIter():
 	if not i:
 		break
 	k=i.split(',')[0]
@@ -188,11 +180,9 @@ while True:
 	count+=1		
 	if limit:
 		if count >= max:
-			fd.close()
 			print "Reached limit "+str(count)+"/"+str(max)
 			break
 et=time.time()-stime
 persec=count/et
 print "Key processed "+str(count)+", "+str(persec).split('.')[0]+" key per second" 
-fd.close()
 exit(0) 
