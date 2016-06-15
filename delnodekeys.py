@@ -4,6 +4,7 @@ import sys
 import os
 import time
 import getopt
+import signal
  
 sys.path.insert(0,'/usr/local/scality-ringsh/ringsh/modules')
 from scality.supervisor import Supervisor
@@ -11,9 +12,12 @@ from scality.node import Node
 from scality.key import Key
 from scality.key import KeyRandom
 from scality.daemon import DaemonFactory , ScalFactoryExceptionTypeNotFound
+from scality.common import ScalDaemonException
+
 
 PRGNAME=os.path.basename(sys.argv[0])
 PHYS=False
+MXCOS=70
 LENKEY=40
 keylist=[]
 option={}
@@ -40,6 +44,12 @@ def usage():
 	-v verbose (display keys)
 """
 	print(message+add)
+
+def handler(signum, frame):
+	print 'Graceful exit'
+	exit(0)
+
+signal.signal(signal.SIGINT, handler)
 
 def parseargs(argv):
 	if len(argv)==0:
@@ -116,7 +126,12 @@ found=False
 # node=DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(target['ip'], target['adminport']), chord_addr=target['ip'], chord_port=target['chordport'], dso=ring, login=login, passwd=password)
 
 s = Supervisor(url=sup,login=login,passwd=password)
-ringstat=s.supervisorConfigDso(action="view", dsoname=ring)
+try:
+	ringstat=s.supervisorConfigDso(action="view", dsoname=ring)
+except ScalDaemonException:
+	print "Invalid login/passwd"
+	exit(9)
+
 for n in ringstat['nodes']:
 	if n['name'] == target:
 		print 'Target found node : '+target
@@ -155,6 +170,11 @@ for i in targetn.listKeysIter():
 	if len(k) != 40:
 		continue
 	K=Key(k)
+	kcos=k[-2:]
+	if int(kcos,16) > MXCOS:
+		if verbose:
+			print "Key cos sorted out "+k
+		continue
 	try:
 		if PHYS:
 			targetn.chunkapiStoreOpPhysDelete(K,True)
