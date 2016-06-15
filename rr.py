@@ -11,7 +11,8 @@ import subprocess
 import re
  
 sys.path.insert(0,'/usr/local/scality-ringsh/ringsh/modules')
-from argparse import ArgumentParser
+#from argparse import ArgumentParser
+import argparse
 from scality.supervisor import Supervisor
 from scality.node import Node
 from scality.daemon import DaemonFactory , ScalFactoryExceptionTypeNotFound
@@ -49,7 +50,7 @@ password="admin"
 
 
 #parser = ArgumentParser(description='Run ringsh commands on single or all components') 
-parser = ArgumentParser(description='''
+parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,description='''
 Run ringsh commands on single or several target
 
 Sample commands :
@@ -129,14 +130,13 @@ class ring_op():
       p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       for line in p.stdout.readlines():
         current=line.split(" ")[1].rstrip(',')
-        print "Ring status is : "+current
+        #print "Ring status is : "+current
         if self.target  == "ALL":
           server_list.append(current)
           continue
         if self.target == "ANY":
           server_list.append(current)
           return(server_list)
-          continue
         """ Do a regexp to avoid missing not standard component name """
         regex=".*"+re.escape(self.target[0])+".*" 
         rule=re.compile(regex)
