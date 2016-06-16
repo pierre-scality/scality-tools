@@ -9,6 +9,7 @@ import logging
 import yaml 
 import subprocess
 import re
+import signal
  
 sys.path.insert(0,'/usr/local/scality-ringsh/ringsh/modules')
 #from argparse import ArgumentParser
@@ -18,12 +19,18 @@ from scality.node import Node
 from scality.daemon import DaemonFactory , ScalFactoryExceptionTypeNotFound
 from scality.common import ScalDaemonException
 
+def sighandler(signum, frame):
+        print 'Graceful exit'
+        exit(0)
+
+signal.signal(signal.SIGINT, sighandler)
+
+
 PRGNAME=os.path.basename(sys.argv[0])
 keylist=[]
 cli=[]
 option={}
 sup ='https://127.0.0.1:2443'
-#ring='ring1'
 dummy=[]
 file=None
 ringyaml="/etc/scality-supervisor/confv2.yaml"
@@ -44,20 +51,21 @@ SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable'
 
 RUN_EXEC=False
 RUN_LOG=False
+STRIPOUT=['Load','Use']
 
 login="root"
 password="admin"
 
 
-#parser = ArgumentParser(description='Run ringsh commands on single or all components') 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,description='''
 Run ringsh commands on single or several target
 
 Sample commands :
 rr.py node get   ==> Will display all nodes parameter on a single random node
+rr.py node get timeout ==> a parameter can be added to limit output on this string
 rr.py rs2 get   ==> Will display all rs2 connector  parameter on a single random (accept rs2/res/accessor/conn/connector keyword)
 rr.py ring get rebuild   ==> will display ring parameter matching rebuild
-rr.py -a -f -r META node set 
+rr.py -a -f -r META node set ov_interface_admin maxsessions 100 => when parameter has a space use \ like ov_protocol_netscript "socket\ timeout" 29 
 
 ''') 
 
@@ -75,7 +83,6 @@ parser.add_argument('-s', '--server-name', nargs=1, help='run on a single define
 args,cli=parser.parse_known_args()
 if args.debug==True:
   logger.setLevel(logging.DEBUG)
-  #print args,cli
 
 
 #self.s = Supervisor(url=sup,login=login,passwd=password)
@@ -97,6 +104,7 @@ class ring_op():
   def __init__(self,arg,cli,method="ringsh",server_name=None):
     if len(cli) < 2:
       logging.error("Need at least type and commands")
+      print parser.description
       exit(9)
     self.cli=cli
     self.comp=cli[0] # obj ad ring/node...
@@ -108,6 +116,7 @@ class ring_op():
     self.method=method
     self.run_exec=arg.force
     self.run_log=arg.logset
+    self.server_list=[]
     if arg.all == True:
       self.target="ALL"
     elif arg.server_name is not None:
@@ -122,32 +131,30 @@ class ring_op():
     print self.ring,command
 
   def get_target(self):
-    server_list=[]
-    #print 'target'+str(self.target)+self.grep
+    logger.debug("Building target list"+str(self.target)+','+self.grep)
     if self.method == "ringsh":
       grep=self.grep+':'
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+"| grep "+grep 
-      p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-      for line in p.stdout.readlines():
+      output=self.execute(cmd)
+      for line in output:
         current=line.split(" ")[1].rstrip(',')
-        #print "Ring status is : "+current
         if self.target  == "ALL":
-          server_list.append(current)
+          self.server_list.append(current)
           continue
-        if self.target == "ANY":
-          server_list.append(current)
-          return(server_list)
-        """ Do a regexp to avoid missing not standard component name """
-        regex=".*"+re.escape(self.target[0])+".*" 
-        rule=re.compile(regex)
-        if rule.match(line):
-          server_list.append(current)
-    else:
-      logging.info("Method not defined "+self.method)
-    if server_list == []:
-      logging.debug('Cannot find name matching')
+        elif self.target == "ANY":
+          self.server_list.append(current)
+          return
+        else: 
+          """ Do a regexp to avoid missing not standard component name """
+          logger.debug("Chekging server to list "+current+" "+self.target[0])
+          regex=".*"+re.escape(self.target[0])+".*" 
+          rule=re.compile(regex)
+          if rule.match(current):
+            logger.debug("Adding server to list "+current)
+            self.server_list.append(current)
+    if self.server_list == []:
+      logging.debug('Cannot find name target')
       exit(2)
-    return(server_list)
 
   def sort_op(self):
     if self.comp=="ring":
@@ -162,12 +169,12 @@ class ring_op():
       self.grep="Node"
     else:
       logger.info("Invalid command "+self.comp)
-      raise ValueError("Type not valid ")
+      ##raise ValueError("Type not valid ")
       exit(1)
-    self.get_target()
+    ##self.get_target()
      
   """" Check and replace cli options to define the proper one """ 
-  def option_check(self):
+  def pass_cmd(self):
     logging.debug("Checking args : "+self.sub+" "+self.op)
     if self.sub=="supervisor":
       if self.op not in RINGOPS:
@@ -220,48 +227,52 @@ class ring_op():
     logging.debug("Entering function ring_op_get")
     if self.comp  == 'ring' and self.op == 'status':
       cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| head -4"
-      logging.debug("run ring status command : "+cmd)
-      p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-      for line in p.stdout.readlines():
+      output=self.execute(cmd)
+      for line in output:
         print line.rstrip()
       return(0)
     elif self.comp == 'ring' and self.op in ('heal','get'):
       cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring+" | grep -v Load"
-      logging.debug("run command ring health|get : "+cmd)
-      p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-      for line in p.stdout.readlines():
+      output=self.execute(cmd)
+      for line in output:
+        if not line:
+          continue
         cat=line.split()[3].rstrip(',')
         if self.op == 'heal' :
           if cat in SELF_HEALING:
             print line.rstrip()
         else:
+          #logging.debug("Displaying result sorting in : "+str(self.param))
           self.ifre_print(line.rstrip())
       return(0)
     elif self.comp in ('accessor','node') :
-      against=self.get_target()
-      logging.debug("running command")
       if self.op == 'cat':
-        cmd="ringsh -r "+self.ring+" -u "+against[0]+" "+self.sub+" configGet "
-        p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        output=[]
-        for line in p.stdout.readlines():
+        cmd="ringsh -r "+self.ring+" -u "+self.server_list[0]+" "+self.sub+" configGet "
+        output=self.execute(cmd)
+        done=[]
+        for line in output:
+          if not line:
+            continue
+          
           strip=line.split()[1].rstrip(',')
-          if strip not in output:
-            output.append(strip)
-        for i in output:
-          print i
+          if strip not in done:
+            done.append(strip)
+            print strip
+        #for i in output:
+        #  print i
         exit(0)
-      for i in against:
+      for i in self.server_list :
         if len(self.param)> 0:
           filter=self.param[0]
         else:
           filter=None
         cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
         logging.debug("run command "+self.sub+" : "+cmd)
-        p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        for line in p.stdout.readlines():
+        output=self.execute(cmd)
+        for line in output:
           self.ifre_print(line.rstrip(),i)
     return(0)
+
 
   def ring_op_set(self):
     if self.comp  == 'ring':
@@ -270,34 +281,38 @@ class ring_op():
         print "NOEXEC "+str(cmd)
       else:
         logging.debug("Running : "+cmd)
-        p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        for line in p.stdout.readlines():
+        output=self.execute(cmd)
+        for line in output:
+          if not line:
+            continue
+          elif line.split()[0] == "Load":
+            continue
           print line.rstrip()
         self.op='get'
         self.ring_op_get()
-        if self.run_log == True:
-          self.ring_op_log(cmd)
         exit(0)
     elif self.comp in ('node','accessor'):
-      against=self.get_target()
-      for i in against:
+      for i in self.server_list :
         if len(self.param)< 3:  
           logging.info('Missing arguments to set Module:Name:Value ')
           exit(5)
+        if ' ' in self.param[1]:
+          self.param[1]=self.param[1].replace(" ","\ ")
         cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configSet "+self.param[0]+" "+self.param[1]+" "+self.param[2]
         if self.run_exec == False:
           print "NOEXEC "+str(cmd) 
           continue
         logging.debug("run command "+self.sub+" : "+cmd)
-        p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
-        for line in p.stdout.readlines():
+        output=self.execute(cmd)
+        for line in output:
           self.ifre_print(line.rstrip(),i)
     else:
       logging.info('Method not implemented '+self.comp)
-    exit(9)
+      exit(9)
 
   """ Log all set operations : not ready yet"""
   def ring_op_log(self,cmd):
+   return(0)
    now=time.strftime('%X %x %Z')
    print "LOG : "+now+" : "+cmd 
 
@@ -311,15 +326,48 @@ class ring_op():
       login='root'
       password='admin'
  
+ # Get the comman toeexecute and returnlist of output
+ # Exit with 1 if error and 9 if receive unexpected param
+  def execute(self,cmd,force_method=None,**option):
+    output=[]
+    if force_method:
+      run_method=force_method
+    else:
+      run_method=self.method
+    if run_method=="ringsh":
+      logging.debug("Execute command : "+cmd)
+      p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+      stdout,stderr=p.communicate()
+      tempout=stdout.split("\n")[::]
+      #print tempout
+      for i in tempout:
+        if not i:
+          continue
+        elif i.split()[0] in STRIPOUT:
+          continue
+        else:
+          output.append(i)
+      rc = p.returncode
+      if rc != 0:
+        logging.info("Command return code non null, probably failed, dumping output")
+        print stderr,stdout
+        exit(1)
+      if self.run_log == True:
+        self.ring_op_log(cmd)
+      return(output)
+    else:
+      logging.info("method not implemented")
+      exit(9)
+ 
 def main():
   logging.debug("Main"+str(args)+str(cli))
   obj=ring_op(args,cli)
-  #obj.show_args()
   obj.sort_op()
-  obj.option_check()
-  #obj.ring_op()
+  obj.get_target()
+  obj.pass_cmd()
   sys.exit(0)
 
-main()
+if __name__ == '__main__':
+  main()
 
 # vim: tabstop=2 shiftwidth=2 expandtab
