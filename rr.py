@@ -77,6 +77,7 @@ parser.add_argument('-l', '--login', nargs='?', help='login', const=login, defau
 parser.add_argument('-L', '--logset', action="store_true", help='logset', default=RUN_LOG)
 parser.add_argument('-p', '--password', nargs='?', help='password', const=password, default=password)
 parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default='DATA')
+parser.add_argument('-R', '--all-ring', help='Loop on all rings', action="store_true", default=False)
 parser.add_argument('-s', '--server-name', nargs=1, help='run on a single defined node')
 
 
@@ -117,6 +118,7 @@ class ring_op():
     self.run_exec=arg.force
     self.run_log=arg.logset
     self.server_list=[]
+    self.ring_list=[]
     if arg.all == True:
       self.target="ALL"
     elif arg.server_name is not None:
@@ -133,6 +135,11 @@ class ring_op():
   def get_target(self):
     logger.debug("Building target list"+str(self.target)+','+self.grep)
     if self.method == "ringsh":
+      cmd="ringsh supervisor ringList" 
+      output=self.execute(cmd)
+      for line in output:
+        print line
+        exit(0)
       grep=self.grep+':'
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+"| grep "+grep 
       output=self.execute(cmd)
@@ -152,6 +159,7 @@ class ring_op():
           if rule.match(current):
             logger.debug("Adding server to list "+current)
             self.server_list.append(current)
+        
     if self.server_list == []:
       logging.debug('Cannot find name target')
       exit(2)
