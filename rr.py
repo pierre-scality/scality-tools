@@ -47,7 +47,7 @@ NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat')
 CONNOPS=('get','set','cat','logget','logset')
-SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable','chordrepair_enable','chordcsd_enable','chordcsd_ringsplit_blocktasks')
+SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable','chordrepair_enable','chordcsd_enable','chordcsd_ringsplit_blocktasks','chordcsd_ringsplit_minhiwat','chordcsd_ringsplit_minlowat','chordcsd_ringsplit_unblocktasks')
 
 RUN_EXEC=False
 RUN_LOG=False
@@ -147,6 +147,7 @@ class ring_op():
       self.ring=ring
       self.get_target()
       self.pass_cmd()
+      print
 
   def get_target(self):
     logger.debug("Building target list :: "+str(self.target)+','+self.grep+','+self.ring)
@@ -305,9 +306,6 @@ class ring_op():
           elif line.split()[0] == "Load":
             continue
           print line.rstrip()
-        self.op='get'
-        self.ring_op_get()
-        exit(0)
     elif self.comp in ('node','accessor'):
       for i in self.server_list :
         if len(self.param)< 3:  
