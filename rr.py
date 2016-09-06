@@ -35,7 +35,7 @@ dummy=[]
 file=None
 ringyaml="/etc/scality-supervisor/confv2.yaml"
 
-logging.basicConfig(format='%(levelname)s : %(message)s',level=logging.INFO)
+logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 logger = logging.getLogger()
 
 CONN=('rest','rs2','connector','conn','accessor')
@@ -77,7 +77,7 @@ parser.add_argument('-l', '--login', nargs='?', help='login', const=login, defau
 parser.add_argument('-L', '--logset', action="store_true", help='logset', default=RUN_LOG)
 parser.add_argument('-p', '--password', nargs='?', help='password', const=password, default=password)
 parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default='DATA')
-parser.add_argument('-R', '--all-ring', help='Loop on all rings', action="store_true", default=False)
+parser.add_argument('-R', '--all-rings', help='Loop on all rings', action="store_true", default=False)
 parser.add_argument('-s', '--server-name', nargs=1, help='run on a single defined node')
 
 
@@ -119,12 +119,14 @@ class ring_op():
     self.run_log=arg.logset
     self.server_list=[]
     self.ring_list=[]
+    self.all_rings=arg.all_rings
     if arg.all == True:
       self.target="ALL"
     elif arg.server_name is not None:
       self.target=arg.server_name
     else:
       self.target="ANY"
+    
 
   def show_args(self):
     command=""
@@ -132,14 +134,24 @@ class ring_op():
       command=command+i+" "
     print self.ring,command
 
-  def get_target(self):
-    logger.debug("Building target list"+str(self.target)+','+self.grep)
-    if self.method == "ringsh":
+  def ring_get_target(self):
+    logger.debug("Building ring target list :: "+str(self.target)+','+self.grep)
+    if self.all_rings:
       cmd="ringsh supervisor ringList" 
       output=self.execute(cmd)
       for line in output:
-        print line
-        exit(0)
+        self.ring_list.append(line)
+    else:
+      self.ring_list.append(self.ring)
+    for ring in self.ring_list:
+      self.ring=ring
+      self.get_target()
+      self.pass_cmd()
+
+  def get_target(self):
+    logger.debug("Building target list :: "+str(self.target)+','+self.grep+','+self.ring)
+    self.server_list=[]
+    if self.method == "ringsh":
       grep=self.grep+':'
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+"| grep "+grep 
       output=self.execute(cmd)
@@ -153,7 +165,7 @@ class ring_op():
           return
         else: 
           """ Do a regexp to avoid missing not standard component name """
-          logger.debug("Chekging server to list "+current+" "+self.target[0])
+          logger.debug("Checking server to list "+current+" "+self.target[0])
           regex=".*"+re.escape(self.target[0])+".*" 
           rule=re.compile(regex)
           if rule.match(current):
@@ -183,7 +195,7 @@ class ring_op():
      
   """" Check and replace cli options to define the proper one """ 
   def pass_cmd(self):
-    logging.debug("Checking args : "+self.sub+" "+self.op)
+    logging.debug("Passing command : "+self.sub+" "+self.op+" Ring : "+self.ring)
     if self.sub=="supervisor":
       if self.op not in RINGOPS:
         logger.error("ring command must be in "+str(RINGOPS)) 
@@ -214,7 +226,7 @@ class ring_op():
       logger.info("Unknow command "+self.sub)
       raise ValueError("Command not valid")
     return(self.op)
- 
+
   def ifre_print(self,line,label=None):
     if len(self.param) == 0:
       if label == None:
@@ -261,21 +273,18 @@ class ring_op():
         for line in output:
           if not line:
             continue
-          
           strip=line.split()[1].rstrip(',')
           if strip not in done:
             done.append(strip)
             print strip
-        #for i in output:
-        #  print i
-        exit(0)
+        return(0)
       for i in self.server_list :
         if len(self.param)> 0:
           filter=self.param[0]
         else:
           filter=None
         cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
-        logging.debug("run command "+self.sub+" : "+cmd)
+        logging.debug("run command :: "+self.sub+" : "+cmd)
         output=self.execute(cmd)
         for line in output:
           self.ifre_print(line.rstrip(),i)
@@ -371,8 +380,8 @@ def main():
   logging.debug("Main"+str(args)+str(cli))
   obj=ring_op(args,cli)
   obj.sort_op()
-  obj.get_target()
-  obj.pass_cmd()
+  obj.ring_get_target()
+  #obj.pass_cmd()
   sys.exit(0)
 
 if __name__ == '__main__':
