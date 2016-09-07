@@ -39,14 +39,14 @@ logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=log
 logger = logging.getLogger()
 
 CONN=('rest','rs2','connector','conn','accessor')
-NODE=('node')
+NODE=('node','n')
 RINGOPS=('get','set','run','status','heal','logget','logset')
 NODEOP_W=('set','logset')
 NODEOP_R=('get','logget','cat')
 NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat')
-CONNOPS=('get','set','cat','logget','logset')
+CONNOPS=CONNOP_W+CONNOP_R
 SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable','chordrepair_enable','chordcsd_enable','chordcsd_ringsplit_blocktasks','chordcsd_ringsplit_minhiwat','chordcsd_ringsplit_minlowat','chordcsd_ringsplit_unblocktasks')
 
 RUN_EXEC=False
@@ -134,7 +134,8 @@ class ring_op():
       command=command+i+" "
     print self.ring,command
 
-  def ring_get_target(self):
+  """ Function to loop on all targeted rings"""
+  def exec_per_ring(self):
     logger.debug("Building ring target list :: "+str(self.target)+','+self.grep)
     if self.all_rings:
       cmd="ringsh supervisor ringList" 
@@ -149,6 +150,7 @@ class ring_op():
       self.pass_cmd()
       print
 
+  """ function to set the target servers in server_list class var"""
   def get_target(self):
     logger.debug("Building target list :: "+str(self.target)+','+self.grep+','+self.ring)
     self.server_list=[]
@@ -177,6 +179,11 @@ class ring_op():
       logging.debug('Cannot find name target')
       exit(2)
 
+  """ function to define various informations to build commands
+      comp define either ring, node or accessor 
+      sub is the ringsh command to run 
+      grep the parameter to grep in ringStatus command to build the target list
+  """
   def sort_op(self):
     if self.comp=="ring":
       self.sub="supervisor"
@@ -186,6 +193,7 @@ class ring_op():
       self.comp="accessor"
       self.grep="Connector"
     elif self.comp in NODE:
+      self.comp="node"
       self.sub="node"
       self.grep="Node"
     else:
@@ -194,9 +202,12 @@ class ring_op():
       exit(1)
     ##self.get_target()
      
-  """" Check and replace cli options to define the proper one """ 
+  """" Check valid parameter and pass to ring command """ 
   def pass_cmd(self):
     logging.debug("Passing command : "+self.sub+" "+self.op+" Ring : "+self.ring)
+    if self.op in ('logget','logset'):
+      self.ring_op_log()
+      return(0) 
     if self.sub=="supervisor":
       if self.op not in RINGOPS:
         logger.error("ring command must be in "+str(RINGOPS)) 
@@ -266,6 +277,7 @@ class ring_op():
           #logging.debug("Displaying result sorting in : "+str(self.param))
           self.ifre_print(line.rstrip())
       return(0)
+      
     elif self.comp in ('accessor','node') :
       if self.op == 'cat':
         cmd="ringsh -r "+self.ring+" -u "+self.server_list[0]+" "+self.sub+" configGet "
@@ -274,10 +286,10 @@ class ring_op():
         for line in output:
           if not line:
             continue
-          strip=line.split()[1].rstrip(',')
-          if strip not in done:
-            done.append(strip)
-            print strip
+          module=line.split()[1].rstrip(',')
+          if module not in done:
+            self.ifre_print(module)
+            done.append(module)
         return(0)
       for i in self.server_list :
         if len(self.param)> 0:
@@ -325,8 +337,38 @@ class ring_op():
       logging.info('Method not implemented '+self.comp)
       exit(9)
 
+
+  def ring_op_log(self):
+   if self.comp in ('ring') and self.op == 'logget':
+     cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
+     output=self.execute(cmd)
+     for line in output:
+       if not line:
+         continue
+       else:
+         self.ifre_print(line.rstrip(),self.ring)
+     return(0)
+   elif self.comp in ('node','accessor') and self.op == 'logget':
+     for node in self.server_list :
+       cmd="ringsh -r "+self.ring+" -u "+node+" "+self.sub+" logLevelGet"
+       output=self.execute(cmd)
+       for line in output:
+         if not line:
+           continue
+         else:
+           self.ifre_print(line.rstrip(),node)
+     return(0)
+   elif self.comp == 'ring' and self.op == 'logset': 
+     print self.comp,self.op,self.param 
+   else:
+     print self.comp,self.op,self.param 
+     logging.info('Method not implemented '+self.comp)
+     exit(9)
+
+
+
   """ Log all set operations : not ready yet"""
-  def ring_op_log(self,cmd):
+  def log_ring_commands(self,cmd):
    return(0)
    now=time.strftime('%X %x %Z')
    print "LOG : "+now+" : "+cmd 
@@ -368,7 +410,7 @@ class ring_op():
         print stderr,stdout
         exit(1)
       if self.run_log == True:
-        self.ring_op_log(cmd)
+        self.log_ring_commands(cmd)
       return(output)
     else:
       logging.info("method not implemented")
@@ -378,7 +420,7 @@ def main():
   logging.debug("Main"+str(args)+str(cli))
   obj=ring_op(args,cli)
   obj.sort_op()
-  obj.ring_get_target()
+  obj.exec_per_ring()
   #obj.pass_cmd()
   sys.exit(0)
 
