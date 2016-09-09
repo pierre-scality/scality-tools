@@ -41,7 +41,7 @@ logger = logging.getLogger()
 SPECIAL=('compare')
 CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
-RINGOPS=('get','set','run','status','heal','logget','logset')
+RINGOPS=('get','set','run','status','heal','logget','logset','list')
 NODEOP_W=('set','logset')
 NODEOP_R=('get','logget','cat','list')
 NODEOPS=NODEOP_W+NODEOP_R
@@ -80,7 +80,7 @@ parser.add_argument('-p', '--password', nargs='?', help='password', const=passwo
 parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default='DATA')
 parser.add_argument('-R', '--all-rings', help='Loop on all rings', action="store_true", default=False)
 parser.add_argument('-s', '--server-name', nargs=1, help='run on a single defined node')
-parser.add_argument('-m', '--method', nargs=1, help='Switch internal code to ringsh or pyscality',default='ringsh')
+parser.add_argument('-m', '--method', nargs='?', help='Switch internal code to ringsh or pyscality',default='ringsh')
 
 
 args,cli=parser.parse_known_args()
@@ -91,36 +91,48 @@ if args.debug==True:
 
 class ring_obj():
   def __init__(self,login,password,ring,url="https://127.0.0.1:2443"):
+  #def __init__(self,login,password,ring,url="https://127.0.0.1:2443",type="node"):
    self.ring=ring
+   self.node=""
    self.nodes={}
    self.rs2={}
    self.names={}
    self.rs2names={}
+   self.nodestatus={}
+   self.type=type
    self.sup = Supervisor(url=url,login=login,passwd=password)
    self.status = self.sup.supervisorConfigDso(action="view", dsoname=self.ring)
-   for n in self.status['nodes']:
-     nid = '%s:%s' % (n['ip'], n['chordport'])
-     self.nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=self.ring, login=login, passwd=password)
-     self.names[nid]=n['name']
-     try:
-       self.nodestatus[nid]=self.nodes[nid].nodeGetStatus()[0]
-     except ScalDaemonException:
-       print "ERROR accessing node %s" % n['name']
-     if not self.node: self.node = self.nodes[nid]
-    
-   r = sup.supervisorConfigBizstore(action="view", dso_filter=ring)
-   for i in r['restconnectors']:
-     rid = '%s:%s' % (i['adminaddress'], i['adminport'])
-     rs2names[rid]=i['name'] 
-   
+   if type == "node":
+     for n in self.status['nodes']:
+       nid = '%s:%s' % (n['ip'], n['chordport'])
+       self.nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=self.ring, login=login, passwd=password)
+       self.names[nid]=n['name']
+       try:
+         self.nodestatus[nid]=self.nodes[nid].nodeGetStatus()[0]
+       except ScalDaemonException:
+         print "ERROR accessing node %s" % n['name']
+       if not self.node: self.node = self.nodes[nid]
+     return(0)
+   elif type == 'accessor': 
+     r = self.sup.supervisorConfigBizstore(action="view", dso_filter=ring)
+     for i in r['restconnectors']:
+       self.rid = '%s:%s' % (i['adminaddress'], i['adminport'])
+       self.rs2names[rid]=i['name'] 
+     return(0)
+  # if we reach here we are probably neither working onnode/accessor => sup 
 
   def obj_list(self,what,param):
+    logger.debug("Building list for"+str(what)+','+param)
+    if what == 'supervisor':
+      for i in self.sup.supervisorConfigMain().keys():
+        print i,
+      return(0)
     if what in CONN:
       dict=self.rnames
     elif what in NODE:
       dict=self.names
     else:
-      logger.error("type node walid "+what)
+      logger.error("type not valid "+what)
       exit(9) 
     if param == 'all':
       for i in dict:
@@ -137,26 +149,25 @@ class ring_obj():
        if i == name: print i
 
 class ring_op():
-  def __init__(self,arg,cli,method="ringsh",server_name=None):
+  def __init__(self,arg,cli,server_name=None):
     if len(cli) < 2:
       logging.error("Need at least type and commands")
       print parser.description
       exit(9)
     self.cli=cli
-    self.method=method
     self.comp=cli[0] # obj ad ring/node...
     self.op=cli[1] # operation ad get/put
     self.param=cli[2:] # remaining options
     self.login=arg.login
     self.password=arg.password
     self.ring=arg.ring_name
-    self.method=method
     self.run_exec=arg.force
     self.run_log=arg.logset
     self.server_list=[]
     self.ring_list=[]
     self.all_rings=arg.all_rings
-    if self.method not in PYSCAL:
+    print "::::: "+arg.method+str(PYSCAL)
+    if arg.method not in PYSCAL:
       self.method='ringsh'
     else:
       self.method='pyscal'
@@ -194,7 +205,7 @@ class ring_op():
   def get_target(self):
     logger.debug("Building target list :: "+str(self.target)+','+self.grep+','+self.ring)
     self.server_list=[]
-    if self.method == "ringsh":
+    if self.method in ("ringsh",'pyscal') :
       grep=self.grep+':'
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+"| grep "+grep 
       output=self.execute(cmd)
@@ -227,6 +238,7 @@ class ring_op():
   def sort_op(self):
     if self.comp=="ring":
       self.sub="supervisor"
+      self.comp="supervisor"
       self.grep="State"
     elif self.comp in CONN:
       self.sub="accessor"
@@ -299,16 +311,19 @@ class ring_op():
           print label+" : "+line 
 
   def ring_op_list(self):
-    if self.comp not in ('accessor','node'):
-      logger.error("can only list accessor and node")
+    print 'method ::: py ::'+self.method
+    if self.comp not in ('accessor','node','supervisor'):
+      logger.error("can only list accessor,supervisor and node")
       exit(9)
     if self.method == 'pyscal':
-      instance=ring_obj(self.login,self.password,self.ring)
-      instance.obj_list(self.comp,'all') 
-    cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+" | grep "+self.grep+":"
-    output=self.execute(cmd)
-    for line in output:
-      print line.rstrip()
+      instance=ring_obj(self.login,self.password,self.ring,self.comp)
+      instance.obj_list(self.comp,'all')
+      return(0)
+    else: 
+      cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+" | grep "+self.grep+":"
+      output=self.execute(cmd)
+      for line in output:
+        print line.rstrip()
     return(0)
 
   def ring_op_get(self):
@@ -439,10 +454,12 @@ class ring_op():
       login='root'
       password='admin'
  
- # Get the comman toeexecute and returnlist of output
+ # Get the comman to execute and returnlist of output
  # Exit with 1 if error and 9 if receive unexpected param
+ # psycality not implemented yet
   def execute(self,cmd,force_method=None,**option):
     output=[]
+    force_method='ringsh'
     if force_method:
       run_method=force_method
     else:
