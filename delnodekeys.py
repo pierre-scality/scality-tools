@@ -27,9 +27,10 @@ dummy=[]
 
 def usage():
 	message="""
-	Check for key is exist or not and print version
-	Replicas can be checked as well (-R option)
-
+	Delete keys from nodes using node name.
+	Node name are build from server, ringname and number (as set by installer)
+	Sample : ./delnodekeys.py -r DATA -p passwd -s node1 -n 1 -v -c 100 -P
+		Will do physdelete of 100 keys, displaying keys on node DATA-node1-n1.
 
 	usage : """+PRGNAME
 	add="""
