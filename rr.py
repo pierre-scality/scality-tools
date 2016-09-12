@@ -75,7 +75,7 @@ parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=
 #parser.add_argument('-D', '--debuglevel', nargs=1, help='Choose debug level see https://docs.python.org/2/library/logging.html')
 parser.add_argument('-f', '--force', action="store_true", help='force execution on set commands', default=RUN_EXEC)
 parser.add_argument('-l', '--login', nargs='?', help='login', const=login, default=login)
-parser.add_argument('-L', '--logset', action="store_true", help='logset', default=RUN_LOG)
+parser.add_argument('-L', '--logall', action="store_true", help='logall', default=RUN_LOG)
 parser.add_argument('-p', '--password', nargs='?', help='password', const=password, default=password)
 parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default='DATA')
 parser.add_argument('-R', '--all-rings', help='Loop on all rings', action="store_true", default=False)
@@ -90,8 +90,9 @@ if args.debug==True:
 
 
 class ring_obj():
-  def __init__(self,login,password,ring,url="https://127.0.0.1:2443"):
+  def __init__(self,login,password,ring,comp="None",target="None",url="https://127.0.0.1:2443"):
   #def __init__(self,login,password,ring,url="https://127.0.0.1:2443",type="node"):
+   logger.debug("Initialisation object ring : "+str(comp))
    self.ring=ring
    self.node=""
    self.nodes={}
@@ -99,10 +100,10 @@ class ring_obj():
    self.names={}
    self.rs2names={}
    self.nodestatus={}
-   self.type=type
+   self.comp=comp
    self.sup = Supervisor(url=url,login=login,passwd=password)
    self.status = self.sup.supervisorConfigDso(action="view", dsoname=self.ring)
-   if type == "node":
+   if self.comp == 'node':
      for n in self.status['nodes']:
        nid = '%s:%s' % (n['ip'], n['chordport'])
        self.nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=self.ring, login=login, passwd=password)
@@ -112,31 +113,31 @@ class ring_obj():
        except ScalDaemonException:
          print "ERROR accessing node %s" % n['name']
        if not self.node: self.node = self.nodes[nid]
-     return(0)
-   elif type == 'accessor': 
+   elif self.comp == 'accessor': 
      r = self.sup.supervisorConfigBizstore(action="view", dso_filter=ring)
      for i in r['restconnectors']:
        self.rid = '%s:%s' % (i['adminaddress'], i['adminport'])
        self.rs2names[rid]=i['name'] 
-     return(0)
-  # if we reach here we are probably neither working onnode/accessor => sup 
+   else: 
+     raise NotImplementedError
+     # if we reach here we are probably neither working onnode/accessor => sup 
 
-  def obj_list(self,what,param):
-    logger.debug("Building list for"+str(what)+','+param)
-    if what == 'supervisor':
+  def obj_list(self,param):
+    logger.debug("Building list for : "+str(self.comp)+','+param)
+    if self.comp == 'supervisor':
       for i in self.sup.supervisorConfigMain().keys():
         print i,
       return(0)
-    if what in CONN:
+    if self.comp in CONN:
       dict=self.rnames
-    elif what in NODE:
+    elif self.comp in NODE:
       dict=self.names
     else:
       logger.error("type not valid "+what)
       exit(9) 
     if param == 'all':
       for i in dict:
-        print i,dict[i]
+        print dict[i],i
     elif param == 'name':
       for i in dict.keys():
         print dict[i]
@@ -162,11 +163,10 @@ class ring_op():
     self.password=arg.password
     self.ring=arg.ring_name
     self.run_exec=arg.force
-    self.run_log=arg.logset
+    self.run_log=arg.logall
     self.server_list=[]
     self.ring_list=[]
     self.all_rings=arg.all_rings
-    print "::::: "+arg.method+str(PYSCAL)
     if arg.method not in PYSCAL:
       self.method='ringsh'
     else:
@@ -294,14 +294,15 @@ class ring_op():
       raise ValueError("Command not valid")
     return(self.op)
 
-  def ifre_print(self,line,label=None):
+  def ifre_print(self,line,label=None,field=0):
     if len(self.param) == 0:
       if label == None:
         print line
       else:
         print label+ ": "+line
     else:
-      pattern=self.param[0]
+      """ to search when having module parameter """
+      pattern=self.param[field]
       regex=".*"+re.escape(pattern)+".*"
       rule=re.compile(regex)
       if rule.match(line):
@@ -311,13 +312,12 @@ class ring_op():
           print label+" : "+line 
 
   def ring_op_list(self):
-    print 'method ::: py ::'+self.method
     if self.comp not in ('accessor','node','supervisor'):
       logger.error("can only list accessor,supervisor and node")
       exit(9)
     if self.method == 'pyscal':
       instance=ring_obj(self.login,self.password,self.ring,self.comp)
-      instance.obj_list(self.comp,'all')
+      instance.obj_list('all')
       return(0)
     else: 
       cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+" | grep "+self.grep+":"
@@ -362,16 +362,22 @@ class ring_op():
             self.ifre_print(module)
             done.append(module)
         return(0)
+      """ We are in a node configGet """
+      field=0
       for i in self.server_list :
         if len(self.param)> 0:
           filter=self.param[0]
         else:
           filter=None
-        cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
+        cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "
+        """ To search module : param we check if we had more than 1 param on input and set field to 1 to pass to print command"""
+        if len(self.param) > 1:
+          cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
+          field=1
         logging.debug("run command :: "+self.sub+" : "+cmd)
         output=self.execute(cmd)
         for line in output:
-          self.ifre_print(line.rstrip(),i)
+          self.ifre_print(line.rstrip(),i,field)
     return(0)
 
 
@@ -430,6 +436,8 @@ class ring_op():
            self.ifre_print(line.rstrip(),node)
      return(0)
    elif self.comp == 'ring' and self.op == 'logset': 
+     cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
+     output=self.execute(cmd)
      print self.comp,self.op,self.param 
    else:
      print self.comp,self.op,self.param 
