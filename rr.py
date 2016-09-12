@@ -113,14 +113,17 @@ class ring_obj():
      rid = '%s:%s' % (i['adminaddress'], i['adminport'])
      rs2names[rid]=i['name'] 
    
-
+  """ 
+     what : parameter to list (node...) 
+     param: additionnal info on obj to list
+  """
   def obj_list(self,what,param):
     if what in CONN:
       dict=self.rnames
     elif what in NODE:
       dict=self.names
     else:
-      logger.error("type node walid "+what)
+      logger.error("type node valid "+what)
       exit(9) 
     if param == 'all':
       for i in dict:
@@ -133,8 +136,12 @@ class ring_obj():
     return(0)
 
   def nodeport(self,name):
-     for i in self.names.keys():
+    for i in self.names.keys():
        if i == name: print i
+
+
+  def obj_conf(self,target):
+    print a 
 
 class ring_op():
   def __init__(self,arg,cli,method="ringsh",server_name=None):
