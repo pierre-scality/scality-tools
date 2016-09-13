@@ -10,6 +10,7 @@ import yaml
 import subprocess
 import re
 import signal
+
  
 sys.path.insert(0,'/usr/local/scality-ringsh/ringsh/modules')
 #from argparse import ArgumentParser
@@ -43,7 +44,7 @@ CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
 RINGOPS=('get','set','run','status','heal','logget','logset','list')
 NODEOP_W=('set','logset')
-NODEOP_R=('get','logget','cat','list')
+NODEOP_R=('get','logget','cat','list','comp','compare')
 NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat','list')
@@ -56,7 +57,7 @@ STRIPOUT=['Load','Use']
 PYSCAL=('py','python','pyscal','pyscality')
 login="root"
 password="admin"
-
+PARAMFILE=None
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,description='''
 Run ringsh commands on single or several target
@@ -67,6 +68,18 @@ rr.py node get timeout ==> a parameter can be added to limit output on this stri
 rr.py rs2 get   ==> Will display all rs2 connector  parameter on a single random (accept rs2/res/accessor/conn/connector keyword)
 rr.py ring get rebuild   ==> will display ring parameter matching rebuild
 rr.py -a -f -r META node set ov_interface_admin maxsessions 100 => when parameter has a space use \ like ov_protocol_netscript "socket\ timeout" 29 
+
+compare mode (node only for now) :
+You can compare node parameters based on a text file with format module:parameter as below (unlimited number of lines)
+msgstore_protocol_chord:chordhttpdmaxsessions
+It will output for this parameters the number of nodes having different values  :
+msgstore_protocol_chord chordhttpdmaxsessions 2000 1
+msgstore_protocol_chord chordhttpdmaxsessions 2500 6
+msgstore_protocol_chord chordhttpdmaxsessions 3000 29
+
+If you want then to check with node has different parameter you have to use :
+rr.py -a node get msgstore_protocol_chord chordhttpdmaxsessions 2500 
+It will return all nodes having this parameter
 
 ''') 
 
@@ -81,6 +94,7 @@ parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is D
 parser.add_argument('-R', '--all-rings', help='Loop on all rings', action="store_true", default=False)
 parser.add_argument('-s', '--server-name', nargs=1, help='run on a single defined node')
 parser.add_argument('-m', '--method', nargs='?', help='Switch internal code to ringsh or pyscality',default='ringsh')
+parser.add_argument('-c', '--compfile', nargs='?', help='List of parameters to be compared',default=PARAMFILE)
 
 
 args,cli=parser.parse_known_args()
@@ -145,9 +159,28 @@ class ring_obj():
       for i in dict: print dict[i]
     return(0)
 
-  def nodeport(self,name):
-     for i in self.names.keys():
-       if i == name: print i
+  def ip_to_n(self,name):
+    if name in self.names.keys(): 
+      return(self.names[name])
+    else:
+      return None
+
+  def n_to_ip(self,name='ALL'):
+    out={}
+    for i in self.names.keys():
+      if name == 'ALL':
+        out[self.names[i]]=i
+      elif self.names[i] == name: 
+        return(i)
+    return(out)
+
+  def obj_config_struct(self):
+    struct={}
+    for this in self.nodes.keys():
+      if this not in struct.keys():
+        struct[this]={}
+      struct[this]=self.nodes[this].configViewModule()
+    return(struct)  
 
 class ring_op():
   def __init__(self,arg,cli,server_name=None):
@@ -166,6 +199,7 @@ class ring_op():
     self.run_log=arg.logall
     self.server_list=[]
     self.ring_list=[]
+    self.compfile=arg.compfile
     self.all_rings=arg.all_rings
     if arg.method not in PYSCAL:
       self.method='ringsh'
@@ -256,6 +290,9 @@ class ring_op():
      
   """" Check valid parameter and pass to ring command """ 
   def pass_cmd(self):
+    if self.compfile != None:
+      self.ring_op_compare()
+      return(0)
     if self.op == 'list': 
       self.ring_op_list()
       return(0)
@@ -365,19 +402,24 @@ class ring_op():
       """ We are in a node configGet """
       field=0
       for i in self.server_list :
-        if len(self.param)> 0:
-          filter=self.param[0]
-        else:
-          filter=None
-        cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "
+        if len(self.param) == 0:
+          cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "
         """ To search module : param we check if we had more than 1 param on input and set field to 1 to pass to print command"""
-        if len(self.param) > 1:
+        if len(self.param) > 0:
           cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
           field=1
-        logging.debug("run command :: "+self.sub+" : "+cmd)
+        #logging.debug("run command :: "+self.sub+" : "+cmd)
         output=self.execute(cmd)
+        field=self.param[1]
         for line in output:
-          self.ifre_print(line.rstrip(),i,field)
+       	  if len(self.param) > 2:
+            z={}
+            for j in line.split(','):
+              z[j.split(':')[0].strip()]=j.split(':')[1].strip()
+            if z['Value'] != self.param[2]:
+              logger.debug('Ignoring value '+z['Value']+' not equal to '+self.param[2])
+              continue
+          self.ifre_print(line.rstrip(),i,1)
     return(0)
 
 
@@ -411,9 +453,60 @@ class ring_op():
         for line in output:
           self.ifre_print(line.rstrip(),i)
     else:
-      logging.info('Method not implemented '+self.comp)
+      logging.info("Component not implemented ".format(self.comp))
       exit(9)
-
+  """ Compare param in dev """
+  def ring_op_compare(self):
+    #source=defaultdict(lambda: defaultdict(dict))
+    source={}
+    result={}
+    try:
+      f = open(self.compfile,'r')
+    except IOError as e:
+      logger.error("File error({0}): {1} : {2}".format(e.errno, e.strerror,self.compfile))
+      exit(9)
+    instance=ring_obj(self.login,self.password,self.ring,self.comp)
+    objstruct=instance.obj_config_struct() 
+    linenb=0
+    for line in f:
+      if line.count(':') == 0:
+        logger.debug('Ignoring line : '+linenb)
+        continue
+      module=line.split(':')[0].rstrip() 
+      param=line.split(':')[1].rstrip() 
+      value=None
+      if line.count(':') == 2:
+        value=line.split(':')[2].rstrip()
+      if not module in source.keys():
+        source[module]={}
+      if not param in source[module].keys():
+        source[module][param]=value
+      linenb+=1
+    logger.debug('file parsed nb lines '+str(linenb))
+    ip=[]
+    for server in self.server_list:
+      ip.append(instance.n_to_ip(server))
+      for this in ip:
+        logger.debug('Found target to compare '+str(this))
+        for module in source.keys():
+          for param in  source[module].keys():
+            logger.debug("Param to get "+this+":"+module+":"+param)
+            try:
+              value=objstruct[this][module][param]['value']
+            except KeyError as e:
+              logger.info("no such key "+module+" , "+param)
+              continue
+            #print instance.ip_to_n(this)+" "+str(module)+":"+str(param)+" "+str(value)
+            index=str(module)+":"+(param)+":"+str(value) 
+            if index not in result.keys():
+              result[index]=[this]
+            else:
+              if this not in result[index]:
+                result[index].append(this)
+    for i in sorted(result.keys()):
+      #print i,len(result[i]),result[i]
+      print i.replace(':',' '),len(result[i])
+    return(0) 
 
   def ring_op_log(self):
    if self.comp in ('ring') and self.op == 'logget':
@@ -440,8 +533,7 @@ class ring_op():
      output=self.execute(cmd)
      print self.comp,self.op,self.param 
    else:
-     print self.comp,self.op,self.param 
-     logging.info('Method not implemented '+self.comp)
+     logging.info("Method not implemented {0} {1}".format(self.comp,self.op))
      exit(9)
 
 
