@@ -118,6 +118,7 @@ class ring_obj():
    self.sup = Supervisor(url=url,login=login,passwd=password)
    self.status = self.sup.supervisorConfigDso(action="view", dsoname=self.ring)
    if self.comp == 'node':
+     logger.info('Getting ring configuration')
      for n in self.status['nodes']:
        nid = '%s:%s' % (n['ip'], n['chordport'])
        self.nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=self.ring, login=login, passwd=password)
@@ -406,24 +407,35 @@ class ring_op():
       """ We are in a node configGet """
       field=0
       for i in self.server_list :
-        if len(self.param) == 0:
-          cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "
+        #filter=None
+        #if len(self.param) == 0:
+        #  filter=self.param[0]
+        if len(self.param) <=1:
+          cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
+          logging.debug("run command :: "+self.sub+" : "+cmd)
+          output=self.execute(cmd)
+          for line in output:
+            self.ifre_print(line.rstrip(),i)
+	  continue
         """ To search module : param we check if we had more than 1 param on input and set field to 1 to pass to print command"""
-        if len(self.param) > 0:
-          cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
-          field=1
-        #logging.debug("run command :: "+self.sub+" : "+cmd)
+        """ This is exact match """
+        cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
         output=self.execute(cmd)
-        field=self.param[1]
+        #print str(len(self.param)),str(self.param)
         for line in output:
-       	  if len(self.param) > 2:
-            z={}
-            for j in line.split(','):
-              z[j.split(':')[0].strip()]=j.split(':')[1].strip()
+          """ We are matching the value """
+          z={}
+          for j in line.split(','):
+            z[j.split(':')[0].strip()]=j.split(':')[1].strip()
+          if len(self.param) > 1:
+            if z['Name'] != self.param[1]:
+              logger.debug('Ignoring value '+z['Name']+' not equal to '+self.param[1])
+              continue
+          if len(self.param) > 2:
             if z['Value'] != self.param[2]:
               logger.debug('Ignoring value '+z['Value']+' not equal to '+self.param[2])
               continue
-          self.ifre_print(line.rstrip(),i,1)
+          self.ifre_print(line.rstrip(),i)
     return(0)
 
 
