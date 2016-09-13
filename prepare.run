@@ -1,0 +1,90 @@
+#!/bin/bash
+
+SVER=${SVER:=2015.8}
+SVERMIN=${SVERMIN:=3}
+
+if [ ! -f /etc/redhat-release ]; 
+then
+	echo "Script for centos/redhat"
+	exit
+else
+cat << fin 
+This script will install salt version $SVER$SVERMIN
+It will remove installed version if any.
+The list of target will be read from host file using salt ip 2 first digits
+Make sure all the target hosts are in the /etc/hosts file.
+The sup will be installed on the machines aliases to salt.
+You will be prompted to continue with the list of found hosts 
+All minions (including master) must be declared in host file
+
+fin
+fi
+
+
+REL=$(rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release))
+
+grep -q salt /etc/hosts 
+if [ $? -ne 0 ]; 
+then
+	echo "Cant find salt ip"
+	exit
+fi
+
+SALT=$(grep salt /etc/hosts|awk '{print $1}')
+
+function run () {
+if [ $# -ne 3 ]; 
+then
+	echo "Arg error function run"
+	exit
+fi
+H=$1
+CMD=$2
+PARAM=$3
+if [ $REL -eq 6 ] ; 
+then
+	case $CMD in
+	start) ssh $H service $PARAM start ;; 
+	enable) ssh $H chkconfig $PARAM on ;;
+	restart) ssh $H service restart $PARAM  ;;
+	*) echo "Unknow function $CMD
+	esac
+else
+	case $CMD in
+	start) ssh $H systemctl $CMD $PARAM ;; 
+	enable) ssh $H systemctl $CMD $PARAM ;; 
+	restart) ssh $H systemctl $CMD $PARAM ;; 
+	*) echo "Unknow function $CMD
+	esac
+fi
+}
+
+
+
+IP=$(echo $SALT | cut -d '.' -f 1,2)
+list=$(grep $IP /etc/hosts | awk '{print $2}')
+list=$(echo $list)
+echo "List of server found is : $list"
+echo -n "Continue ? (Ctrl C to abort) : " 
+read dummy
+SREP=https://repo.saltstack.com/yum/redhat/salt-repo-$SVER-$SVERMIN.el${REL}.noarch.rpm
+SUP=${SUP=sup}
+YUM="yum -y --disablerepo=\"*\" --enablerepo=\"salt-$SVER\""
+
+# validate ssh host key
+for i in $(echo $list) ; do ssh $i  hostname ; done
+
+for i in $(echo $list) ; do echo $i ; 
+	ssh $i yum -y remove "salt*" 
+	ssh $i  yum -y install $SREP; 
+	if [ $i == $SUP ]; 
+	then 
+		ssh $i $YUM -y install salt-master
+		run $i enable salt-master
+		run $i start salt-master
+	fi	
+	ssh $i $YUM -y install salt-minion ; 
+	ssh $i "printf \"id: $i \nmaster: ${SALT}\n\" > /etc/salt/minion.d/minion.conf"
+	run $i enable salt-minion ; 
+	run $i start salt-minion ; 
+done    

@@ -182,6 +182,10 @@ class ring_obj():
       struct[this]=self.nodes[this].configViewModule()
     return(struct)  
 
+
+  def obj_conf(self,target):
+    print a 
+
 class ring_op():
   def __init__(self,arg,cli,server_name=None):
     if len(cli) < 2:
