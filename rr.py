@@ -342,7 +342,8 @@ class ring_op():
         print line
       else:
         print label+ ": "+line
-    else:
+      return(0)
+    elif len(self.param) == 1 or self.comp == 'supervisor' :
       """ to search when having module parameter """
       pattern=self.param[field]
       regex=".*"+re.escape(pattern)+".*"
@@ -351,7 +352,28 @@ class ring_op():
         if label == None:
           print line 
         else:
-          print label+" : "+line 
+          print label+" : "+line
+      return(0)
+    elif len(self.param) > 1:
+      logger.debug("doing exact match {0}".format(str(self.param)))
+      z={}
+      for j in line.split(','):
+        z[j.split(':')[0].strip()]=j.split(':')[1].strip()
+      if z['Name'] != self.param[1]:
+        logger.debug('Ignoring value '+z['Name']+' not equal to '+self.param[1])
+        return(0)
+    elif len(self.param) > 2:
+      if z['Value'] != self.param[2]:
+        logger.debug('Ignoring value '+z['Value']+' not equal to '+self.param[2])
+        return(0)
+    if label == None:
+        print line
+    else:
+        print label+ ": "+line
+    return(0)
+
+      
+      
 
   def ring_op_list(self):
     if self.comp not in ('accessor','node','supervisor'):
@@ -369,14 +391,14 @@ class ring_op():
     return(0)
 
   def ring_op_get(self):
-    logging.debug("Entering function ring_op_get")
-    if self.comp  == 'ring' and self.op == 'status':
+    logging.debug("Entering function ring_op_get {0} {1}".format(str(self.comp),str(self.op)))
+    if self.comp  == 'supervisor' and self.op == 'status':
       cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| head -4"
       output=self.execute(cmd)
       for line in output:
         print line.rstrip()
       return(0)
-    elif self.comp == 'ring' and self.op in ('heal','get'):
+    elif self.comp == 'supervisor' and self.op in ('heal','get'):
       cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring+" | grep -v Load"
       output=self.execute(cmd)
       for line in output:
@@ -387,7 +409,7 @@ class ring_op():
           if cat in SELF_HEALING:
             print line.rstrip()
         else:
-          #logging.debug("Displaying result sorting in : "+str(self.param))
+          logging.debug("Displaying result sorting in : "+str(self.param))
           self.ifre_print(line.rstrip())
       return(0)
       
@@ -404,12 +426,13 @@ class ring_op():
             self.ifre_print(module)
             done.append(module)
         return(0)
-      """ We are in a node configGet """
+      """ We are in a configGet """
       field=0
       for i in self.server_list :
         #filter=None
         #if len(self.param) == 0:
         #  filter=self.param[0]
+        """ if param[0] is set we do a regex with ifre_print """
         if len(self.param) <=1:
           cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
           logging.debug("run command :: "+self.sub+" : "+cmd)
@@ -419,28 +442,17 @@ class ring_op():
 	  continue
         """ To search module : param we check if we had more than 1 param on input and set field to 1 to pass to print command"""
         """ This is exact match """
+        """ param is ['module','name','value']  """
         cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
         output=self.execute(cmd)
         #print str(len(self.param)),str(self.param)
         for line in output:
-          """ We are matching the value """
-          z={}
-          for j in line.split(','):
-            z[j.split(':')[0].strip()]=j.split(':')[1].strip()
-          if len(self.param) > 1:
-            if z['Name'] != self.param[1]:
-              logger.debug('Ignoring value '+z['Name']+' not equal to '+self.param[1])
-              continue
-          if len(self.param) > 2:
-            if z['Value'] != self.param[2]:
-              logger.debug('Ignoring value '+z['Value']+' not equal to '+self.param[2])
-              continue
           self.ifre_print(line.rstrip(),i)
     return(0)
 
 
   def ring_op_set(self):
-    if self.comp  == 'ring':
+    if self.comp  == 'supervisor':
       cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigSet "+self.ring+" "+self.param[0]+" "+self.param[1]
       if self.run_exec == False:
         print "NOEXEC "+str(cmd)
@@ -525,7 +537,11 @@ class ring_op():
     return(0) 
 
   def ring_op_log(self):
-   if self.comp in ('ring') and self.op == 'logget':
+   if self.op == 'logset':
+     logging.info("Method not implemented {0} {1}".format(self.comp,self.op))
+     exit(9)
+   print str(self.sub)
+   if self.comp == 'supervisor' and self.op == 'logget':
      cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
      output=self.execute(cmd)
      for line in output:
@@ -544,10 +560,13 @@ class ring_op():
          else:
            self.ifre_print(line.rstrip(),node)
      return(0)
-   elif self.comp == 'ring' and self.op == 'logset': 
+   elif self.comp == 'supervisor' and self.op == 'logset': 
      cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
      output=self.execute(cmd)
-     print self.comp,self.op,self.param 
+   elif self.comp in ('node','accessor') and self.op == 'logget':
+     for node in self.server_list :
+       cmd="ringsh -r "+self.ring+" -u "+node+" "+self.sub+" logLevelGet"
+       output=self.execute(cmd)
    else:
      logging.info("Method not implemented {0} {1}".format(self.comp,self.op))
      exit(9)
