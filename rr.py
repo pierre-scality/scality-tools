@@ -438,9 +438,12 @@ class ring_op():
         #  filter=self.param[0]
         """ if param[0] is set we do a regex with ifre_print """
         if self.op == 'stat':
-          if self.param[0] == None:
-            logging.error("run command :: {0} : {1}".format(self.sub,cmd))
-            exit(9)
+          if len(self.param) == 0: 
+            cmd="ringsh -r {0} -u {1} {2} dumpStats".format(self.ring,i,self.sub)
+            output=self.execute(cmd)
+            for line in output:
+              self.ifre_print(line.rstrip(),i)
+            exit(0)
           else:
             #cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
             cmd="ringsh -r {0} -u {1} {2} dumpStats {3}".format(self.ring,i,self.sub,self.param[0]) 
