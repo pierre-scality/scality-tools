@@ -44,7 +44,7 @@ CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
 RINGOPS=('get','set','run','status','heal','logget','logset','list')
 NODEOP_W=('set','logset')
-NODEOP_R=('get','logget','cat','list','comp','compare')
+NODEOP_R=('get','logget','cat','list','comp','compare','stat')
 NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat','list')
@@ -216,7 +216,7 @@ class ring_op():
       self.target=arg.server_name
     else:
       self.target="ANY"
-    
+    logger.debug("List of params :: "+str(self.param))
 
   def show_args(self):
     command=""
@@ -336,7 +336,7 @@ class ring_op():
       raise ValueError("Command not valid")
     return(self.op)
 
-  def ifre_print(self,line,label=None,field=0):
+  def ifre_print(self,line,label=None,field=0,exact=False):
     if len(self.param) == 0:
       if label == None:
         print line
@@ -345,8 +345,12 @@ class ring_op():
       return(0)
     elif len(self.param) == 1 or self.comp == 'supervisor' :
       """ to search when having module parameter """
+      logger.debug("XXXXX {0}".format(str(self.param)))
       pattern=self.param[field]
-      regex=".*"+re.escape(pattern)+".*"
+      if exact:
+        regex=".*"+re.escape(pattern)+"\W.*"
+      else:
+        regex=".*"+re.escape(pattern)+".*"
       rule=re.compile(regex)
       if rule.match(line):
         if label == None:
@@ -433,6 +437,18 @@ class ring_op():
         #if len(self.param) == 0:
         #  filter=self.param[0]
         """ if param[0] is set we do a regex with ifre_print """
+        if self.op == 'stat':
+          if self.param[0] == None:
+            logging.error("run command :: {0} : {1}".format(self.sub,cmd))
+            exit(9)
+          else:
+            #cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
+            cmd="ringsh -r {0} -u {1} {2} dumpStats {3}".format(self.ring,i,self.sub,self.param[0]) 
+          # to go in exact match in ifre_print set parm 1 = 0
+          output=self.execute(cmd)
+          for line in output:
+            self.ifre_print(line.rstrip(),i,exact=1)
+          continue
         if len(self.param) <=1:
           cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
           logging.debug("run command :: "+self.sub+" : "+cmd)
