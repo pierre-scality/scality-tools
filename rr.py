@@ -76,9 +76,32 @@ rr.py rs2 get   ==> Will display all rs2 connector  parameter on a single random
 rr.py ring get rebuild   ==> will display ring parameter matching rebuild
 rr.py -a -f -r META node set ov_interface_admin maxsessions 100 => when parameter has a space use \ like ov_protocol_netscript "socket\ timeout" 29 
 
-compare mode (node only for now) :
-You can compare node parameters based on a text file (with -c parameter file) with format module:parameter as below (unlimited number of lines)
-msgstore_protocol_chord:chordhttpdmaxsessions
+By default it runs on a single node/connector needs -a to iterate on all of them
+The set command by default do not run command but dislay it, one need to add -a flag
+So to run a set command on all nodes one needs to run:
+ rr.py -fa node set msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 
+
+ * ring name 
+ Ring name must be specfied with -r or use DATA as default ring name.
+ One can use RING env variable instead.
+
+ * ring status 
+ ring status [long] : gives ringStatus with just general status or all but Disk with long param
+
+ * log settings 
+ node logget/logset syntax as for node/connector
+
+ * statistics
+ node stat [param]
+ Node statistics (dumpstat) without arg list all stats
+ With 1 parameter do an exact match of the path
+
+ * compare mode (node only for now)
+ -c <param file> node compare
+You can compare node parameters based on a text file (with -c parameter file) 
+with format module:parameter as below (unlimited number of lines) as :
+  msgstore_protocol_chord:chordhttpdmaxsessions
+
 It will output for this parameters the number of nodes having different values  :
 msgstore_protocol_chord chordhttpdmaxsessions 2000 1
 msgstore_protocol_chord chordhttpdmaxsessions 2500 6
@@ -423,7 +446,10 @@ class ring_op():
   def ring_op_get(self):
     logging.debug("Entering function ring_op_get {0} {1}".format(str(self.comp),str(self.op)))
     if self.comp  == 'supervisor' and self.op == 'status':
-      cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| head -4"
+      if len(self.param) > 0 and self.param[0] == 'long':
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| grep -v '^Disk'"
+      else:
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| head -4"
       output=self.execute(cmd)
       for line in output:
         print line.rstrip()
