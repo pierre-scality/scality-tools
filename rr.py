@@ -10,6 +10,7 @@ import yaml
 import subprocess
 import re
 import signal
+import json
 
  
 sys.path.insert(0,'/usr/local/scality-ringsh/ringsh/modules')
@@ -39,6 +40,11 @@ ringyaml="/etc/scality-supervisor/confv2.yaml"
 logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 logger = logging.getLogger()
 
+try:
+  RING=os.environ['RING']
+except KeyError:
+  RING='DATA'
+
 SPECIAL=('compare')
 CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
@@ -55,9 +61,10 @@ RUN_EXEC=False
 RUN_LOG=False
 STRIPOUT=['Load','Use']
 PYSCAL=('py','python','pyscal','pyscality')
+PARAMFILE=None
+CREDFILE="/tmp/scality-installer-credentials"
 login="root"
 password="admin"
-PARAMFILE=None
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,description='''
 Run ringsh commands on single or several target
@@ -70,7 +77,7 @@ rr.py ring get rebuild   ==> will display ring parameter matching rebuild
 rr.py -a -f -r META node set ov_interface_admin maxsessions 100 => when parameter has a space use \ like ov_protocol_netscript "socket\ timeout" 29 
 
 compare mode (node only for now) :
-You can compare node parameters based on a text file with format module:parameter as below (unlimited number of lines)
+You can compare node parameters based on a text file (with -c parameter file) with format module:parameter as below (unlimited number of lines)
 msgstore_protocol_chord:chordhttpdmaxsessions
 It will output for this parameters the number of nodes having different values  :
 msgstore_protocol_chord chordhttpdmaxsessions 2000 1
@@ -87,10 +94,10 @@ parser.add_argument('-a', '--all', help='Loop on all servers', action="store_tru
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 #parser.add_argument('-D', '--debuglevel', nargs=1, help='Choose debug level see https://docs.python.org/2/library/logging.html')
 parser.add_argument('-f', '--force', action="store_true", help='force execution on set commands', default=RUN_EXEC)
-parser.add_argument('-l', '--login', nargs='?', help='login', const=login, default=login)
+parser.add_argument('-l', '--login', nargs='?', help='login', const=login)
 parser.add_argument('-L', '--logall', action="store_true", help='logall', default=RUN_LOG)
-parser.add_argument('-p', '--password', nargs='?', help='password', const=password, default=password)
-parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default='DATA')
+parser.add_argument('-p', '--password', nargs='?', help='password', const=password)
+parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default=RING)
 parser.add_argument('-R', '--all-rings', help='Loop on all rings', action="store_true", default=False)
 parser.add_argument('-s', '--server-name', nargs=1, help='run on a single defined node')
 parser.add_argument('-m', '--method', nargs='?', help='Switch internal code to ringsh or pyscality',default='ringsh')
@@ -100,8 +107,6 @@ parser.add_argument('-c', '--compfile', nargs='?', help='List of parameters to b
 args,cli=parser.parse_known_args()
 if args.debug==True:
   logger.setLevel(logging.DEBUG)
-
-
 
 class ring_obj():
   def __init__(self,login,password,ring,comp="None",target="None",url="https://127.0.0.1:2443"):
@@ -216,7 +221,28 @@ class ring_op():
       self.target=arg.server_name
     else:
       self.target="ANY"
+    self.ring_auth()
     logger.debug("List of params :: "+str(self.param))
+
+  def ring_auth(self):
+    if self.login == None or self.password == None:
+      try:
+        d=open(CREDFILE,'r')
+        cred=json.load(d)
+        logger.debug("Open {0} file".format(CREDFILE))
+        if self.login == None:
+          self.login=cred['internal-management-requests']['username']
+        if self.password == None:
+          self.password=cred['internal-management-requests']['password']
+        d.close()
+      except IOError:
+        logger.debug("Can't open {0} file".format(CREDFILE))
+        if self.login == None:
+          self.login=login
+        if self.password == None:
+          self.password=password
+    logger.debug("Values {0} {1}".format(self.login, self.password))
+
 
   def show_args(self):
     command=""
@@ -517,7 +543,7 @@ class ring_op():
     linenb=0
     for line in f:
       if line.count(':') == 0:
-        logger.debug('Ignoring line : '+linenb)
+        logger.debug('Ignoring line : '+str(linenb))
         continue
       module=line.split(':')[0].rstrip() 
       param=line.split(':')[1].rstrip() 
