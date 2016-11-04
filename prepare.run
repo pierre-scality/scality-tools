@@ -2,6 +2,7 @@
 
 SVER=${SVER:=2015.8}
 SVERMIN=${SVERMIN:=3}
+arglist=$*
 
 if [ ! -f /etc/redhat-release ]; 
 then
@@ -22,6 +23,7 @@ fi
 
 
 REL=$(rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release))
+REL=$(echo $REL)
 
 grep -q salt /etc/hosts 
 if [ $? -ne 0 ]; 
@@ -41,30 +43,41 @@ fi
 H=$1
 CMD=$2
 PARAM=$3
-if [ $REL -eq 6 ] ; 
-then
+case $REL in
+6)
+	echo "($REL) ssh $H service $PARAM $CMD"
 	case $CMD in
 	start) ssh $H service $PARAM start ;; 
 	enable) ssh $H chkconfig $PARAM on ;;
 	restart) ssh $H service restart $PARAM  ;;
-	*) echo "Unknow function $CMD
+	*) echo "Unknow function $CMD"
 	esac
-else
+;;
+7)
+	echo "($REL) ssh $H systemctl $PARAM $CMD"
 	case $CMD in
 	start) ssh $H systemctl $CMD $PARAM ;; 
 	enable) ssh $H systemctl $CMD $PARAM ;; 
 	restart) ssh $H systemctl $CMD $PARAM ;; 
-	*) echo "Unknow function $CMD
+	*) echo "Unknow function $CMD"
 	esac
-fi
+;;
+*)
+	echo "Version :$REL: not supported"
+	;;
+esac
 }
 
 
 
 IP=$(echo $SALT | cut -d '.' -f 1,2)
-list=$(grep $IP /etc/hosts | awk '{print $2}')
+list=$(grep -v '^#' /etc/hosts|grep $IP | awk '{print $2}')
 list=$(echo $list)
 echo "List of server found is : $list"
+if [ $(echo $arglist|sed s/\ //g|wc -c) -gt 1 ]; then
+list=$*
+echo "argument replaced list : $list"
+fi
 echo -n "Continue ? (Ctrl C to abort) : " 
 read dummy
 SREP=https://repo.saltstack.com/yum/redhat/salt-repo-$SVER-$SVERMIN.el${REL}.noarch.rpm
@@ -72,10 +85,10 @@ SUP=${SUP=sup}
 YUM="yum -y --disablerepo=\"*\" --enablerepo=\"salt-$SVER\""
 
 # validate ssh host key
-for i in $(echo $list) ; do ssh $i  hostname ; done
+for i in $(echo $list) ; do ssh $i hostname ; done
 
-for i in $(echo $list) ; do echo $i ; 
-	ssh $i yum -y remove "salt*" 
+for i in $(echo $list) ; do 
+	#ssh $i yum -y remove "salt*" 
 	ssh $i  yum -y install $SREP; 
 	if [ $i == $SUP ]; 
 	then 
