@@ -50,7 +50,7 @@ CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
 RINGOPS=('get','set','run','status','heal','logget','logset','list')
 NODEOP_W=('set','logset')
-NODEOP_R=('get','logget','cat','list','comp','compare','stat','exec')
+NODEOP_R=('get','logget','cat','list','comp','compare','stat','disk')
 NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat','list')
@@ -95,6 +95,9 @@ So to run a set command on all nodes one needs to run:
  node stat [param]
  Node statistics (dumpstat) without arg list all stats
  With 1 parameter do an exact match of the path
+
+ * disk 
+ run diskConfigGet for the target
 
  * compare mode (node only for now)
  -c <param file> node compare
@@ -483,7 +486,7 @@ class ring_op():
             done.append(module)
         return(0)
       """ We are in a configGet/exec """
-      logging.debug("Entering configet/exec module :: {0} {1}".format(self.sub,self.param[0]))
+      logging.debug("Entering configet/exec module :: {0}".format(self.sub))
       field=0
       for i in self.server_list :
         #filter=None
@@ -505,8 +508,12 @@ class ring_op():
           for line in output:
             self.ifre_print(line.rstrip(),i,exact=1)
           continue
-        if self.op == 'exec':
-          command=' '.join(map(str, self.param[0:]))
+        if self.op == 'disk':
+          if self.sub != "node":
+           print "Argument error disk is only available for node"
+           exit(9)
+          #command=' '.join(map(str, self.param[0:]))
+          command="diskConfigGet"
           cmd="ringsh -r {0} -u {1} {2} {3}".format(self.ring,i,self.sub,command)
           logging.debug("run command :: "+self.sub+" : "+cmd)
           output=self.execute(cmd)
