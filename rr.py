@@ -50,7 +50,7 @@ CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
 RINGOPS=('get','set','run','status','heal','logget','logset','list')
 NODEOP_W=('set','logset')
-NODEOP_R=('get','logget','cat','list','comp','compare','stat')
+NODEOP_R=('get','logget','cat','list','comp','compare','stat','exec')
 NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat','list')
@@ -385,8 +385,8 @@ class ring_op():
       raise ValueError("Command not valid")
     return(self.op)
 
-  def ifre_print(self,line,label=None,field=0,exact=False):
-    if len(self.param) == 0:
+  def ifre_print(self,line,label=None,field=0,exact=False,raw=0):
+    if len(self.param) == 0 or raw == 1:
       if label == None:
         print line
       else:
@@ -394,7 +394,7 @@ class ring_op():
       return(0)
     elif len(self.param) == 1 or self.comp == 'supervisor' :
       """ to search when having module parameter """
-      logger.debug("XXXXX {0}".format(str(self.param)))
+      logger.debug("ifreprint {0}".format(str(self.param)))
       pattern=self.param[field]
       if exact:
         regex=".*"+re.escape(pattern)+"\W.*"
@@ -482,7 +482,8 @@ class ring_op():
             self.ifre_print(module)
             done.append(module)
         return(0)
-      """ We are in a configGet """
+      """ We are in a configGet/exec """
+      logging.debug("Entering configet/exec module :: {0} {1}".format(self.sub,self.param[0]))
       field=0
       for i in self.server_list :
         #filter=None
@@ -504,10 +505,20 @@ class ring_op():
           for line in output:
             self.ifre_print(line.rstrip(),i,exact=1)
           continue
+        if self.op == 'exec':
+          command=' '.join(map(str, self.param[0:]))
+          cmd="ringsh -r {0} -u {1} {2} {3}".format(self.ring,i,self.sub,command)
+          logging.debug("run command :: "+self.sub+" : "+cmd)
+          output=self.execute(cmd)
+          #print output
+          for line in output:
+            self.ifre_print(line.rstrip(),i,raw=1)
+          continue 
         if len(self.param) <=1:
           cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
           logging.debug("run command :: "+self.sub+" : "+cmd)
           output=self.execute(cmd)
+          #print output
           for line in output:
             self.ifre_print(line.rstrip(),i)
 	  continue
