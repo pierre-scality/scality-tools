@@ -82,7 +82,8 @@ echo -n "Continue ? (Ctrl C to abort) : "
 read dummy
 SREP=https://repo.saltstack.com/yum/redhat/salt-repo-$SVER-$SVERMIN.el${REL}.noarch.rpm
 SUP=${SUP=sup}
-YUM="yum -y --disablerepo=\"*\" --enablerepo=\"salt-$SVER\""
+#YUM="yum -y --disablerepo=\"*\" --enablerepo=\"salt-$SVER\""
+YUM="yum -y"
 
 # validate ssh host key
 for i in $(echo $list) ; do ssh $i hostname ; done
