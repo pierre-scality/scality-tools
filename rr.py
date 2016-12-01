@@ -86,7 +86,8 @@ So to run a set command on all nodes one needs to run:
  One can use RING env variable instead.
 
  * ring status 
- ring status [long] : gives ringStatus with just general status or all but Disk with long param
+ ring status [long | full ] : gives ringStatus with just general status or all but Disk with long param and all with full
+ ring status xxx where xxx is neither long or full will grep the string out of the ringStatus output
 
  * log settings 
  node logget/logset syntax as for node/connector
@@ -451,8 +452,12 @@ class ring_op():
     if self.comp  == 'supervisor' and self.op == 'status':
       if len(self.param) > 0 and self.param[0] == 'long':
         cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| grep -v '^Disk'"
+      elif len(self.param) > 0 and self.param[0] == 'full':
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring
+      elif len(self.param) > 0:
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+" |grep "+self.param[0]
       else:
-        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| head -4"
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| egrep -vE '(^Disk:|^Node:|^Connector:)'" 
       output=self.execute(cmd)
       for line in output:
         print line.rstrip()
