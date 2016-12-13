@@ -30,6 +30,8 @@ if [ $? -ne 0 ];
 then
 	echo "Cant find salt ip"
 	exit
+else
+	SUP=$(grep salt /etc/hosts | awk '{print $2}')
 fi
 
 SALT=$(grep salt /etc/hosts|awk '{print $1}')
@@ -74,6 +76,7 @@ IP=$(echo $SALT | cut -d '.' -f 1,2)
 list=$(grep -v '^#' /etc/hosts|grep $IP | awk '{print $2}')
 list=$(echo $list)
 echo "List of server found is : $list"
+echo "Salt master is : $SUP"
 if [ $(echo $arglist|sed s/\ //g|wc -c) -gt 1 ]; then
 list=$*
 echo "argument replaced list : $list"
@@ -81,12 +84,12 @@ fi
 echo -n "Continue ? (Ctrl C to abort) : " 
 read dummy
 SREP=https://repo.saltstack.com/yum/redhat/salt-repo-$SVER-$SVERMIN.el${REL}.noarch.rpm
-SUP=${SUP=sup}
 #YUM="yum -y --disablerepo=\"*\" --enablerepo=\"salt-$SVER\""
 YUM="yum -y"
 
 # validate ssh host key
-for i in $(echo $list) ; do ssh $i hostname ; done
+for i in $(echo $list) ; do 
+ssh $i hostname ; done
 
 for i in $(echo $list) ; do 
 	#ssh $i yum -y remove "salt*" 
@@ -101,4 +104,5 @@ for i in $(echo $list) ; do
 	ssh $i "printf \"id: $i \nmaster: ${SALT}\n\" > /etc/salt/minion.d/minion.conf"
 	run $i enable salt-minion ; 
 	run $i start salt-minion ; 
-done    
+done  
+run $SUP restart salt-master  
