@@ -21,6 +21,26 @@ All minions (including master) must be declared in host file
 fin
 fi
 
+### Notes to go to 2015.8.8.2 ### 
+# content of the new repo :
+cat << fin > /tmp/salt.repo.2015.8.8.2
+
+
+[saltstack-repo]
+name=SaltStack repo for RHEL/CentOS $releasever
+baseurl=https://repo.saltstack.com/yum/redhat/$releasever/$basearch/archive/2015.8.8.2
+enabled=1
+gpgcheck=1
+gpgkey=https://repo.saltstack.com/yum/redhat/$releasever/$basearch/archive/2015.8.8.2/SALTSTACK-GPG-KEY.pub
+fin
+cat << fin > /tmp/upgrade.salt.2015.8.8.2
+# salt '*' pkg.remove salt-repo
+# salt '*' cmd.run 'rpm --import https://repo.saltstack.com/yum/redhat/7/x86_64/archive/2015.8.8.2/SALTSTACK-GPG-KEY.pub
+# rpm -q gpg-pubkey --qf '%{name}-%{version}-%{release} --> %{summary}\n' 
+# salt '*' file.cp /tmp/salt.repo.2015.8.8.2 
+# salt '*' yum clean expire-cache  
+# salt '*' cmd.run 'yum upgrade "salt*"'
+fin
 
 REL=$(rpm -q --qf "%{VERSION}" $(rpm -q --whatprovides redhat-release))
 REL=$(echo $REL)
