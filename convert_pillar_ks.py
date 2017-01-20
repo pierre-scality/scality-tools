@@ -37,7 +37,7 @@ for opt, arg in opts:
     usage()                     
     exit()   
   elif opt in ('-r'):
-    ringsh=arg
+    ring=arg
   else:
     print "Argument error : "+arg
     usage
@@ -96,21 +96,39 @@ def get_running_ks(hostfile):
 #name=get_name('file',source_name)
 name=get_name('ringsh')
 
+def get_min_port(ringsh):
+  port=[]
+  with open(ringsh) as f:
+    for line in f:
+      port.append(line.split()[4])
+  return min(port)
 
-with open(ringsh) as f:
-  for newline in f:
-    line=newline.split()
-    ip=line[3]
-    host=name[ip]
-    nid=int(line[4])-8083
-    assigned=line[5]
-    if newks.has_key(host):
-      newks[host].update({nid:assigned})
-    else:
-      newks[host]={nid:assigned}    
+def create_ks_from_ksfile(ringsh,port):
+  with open(ringsh) as f:
+    for newline in f:
+      line=newline.split()
+      ip=line[3]
+      host=name[ip]
+      nid=int(line[4])-(int(port)-1)
+      assigned=line[5]
+      if newks.has_key(host):
+        newks[host].update({nid:assigned})
+      else:
+        newks[host]={nid:assigned}    
+  return(newks)
+
+
 print "Using pillar : "+pillar_file
 pillar=yaml.load(open(pillar_file))
+existing_rings=pillar['scality']['keyspace'].keys()
+if not ring in existing_rings:
+  print "WARNING : ring {} not existing in original pillar {}, adding ring".format(ring,str(existing_rings)) 
 pillar['scality']['keyspace'][ring]=newks
+
+
+
+port=get_min_port(ringsh)
+newks=create_ks_from_ksfile(ringsh,port)
 
 with open(output, 'w') as fout:
   yaml.dump(pillar, fout, default_flow_style=False)
