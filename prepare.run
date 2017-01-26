@@ -1,7 +1,8 @@
 #!/bin/bash
 
-SVER=${SVER:=2015.8}
-SVERMIN=${SVERMIN:=3}
+#SVER=${SVER:=2015.8}
+SVER=${SVER:=2016.3}
+SVERMIN=${SVERMIN:=1}
 arglist=$*
 
 if [ ! -f /etc/redhat-release ]; 
@@ -91,7 +92,8 @@ esac
 }
 
 
-
+SREP=https://repo.saltstack.com/yum/redhat/salt-repo-$SVER-$SVERMIN.el${REL}.noarch.rpm
+echo "Repo is : $SREP"
 IP=$(echo $SALT | cut -d '.' -f 1,2)
 list=$(grep -v '^#' /etc/hosts|grep $IP | awk '{print $2}')
 list=$(echo $list)
@@ -103,7 +105,6 @@ echo "argument replaced list : $list"
 fi
 echo -n "Continue ? (Ctrl C to abort) : " 
 read dummy
-SREP=https://repo.saltstack.com/yum/redhat/salt-repo-$SVER-$SVERMIN.el${REL}.noarch.rpm
 #YUM="yum -y --disablerepo=\"*\" --enablerepo=\"salt-$SVER\""
 YUM="yum -y"
 
