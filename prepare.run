@@ -5,6 +5,8 @@ SVER=${SVER:=2016.3}
 SVERMIN=${SVERMIN:=1}
 arglist=$*
 
+STOP=/tmp/stop-prepare
+
 if [ ! -f /etc/redhat-release ]; 
 then
 	echo "Script for centos/redhat"
@@ -113,6 +115,13 @@ for i in $(echo $list) ; do
 ssh $i hostname ; done
 
 for i in $(echo $list) ; do 
+	if [ -f $STOP ] ; 
+	then 
+		echo "Stop flag exiting"
+		exit
+	else
+		echo ")))))))) Installing salt on $i (((((((("  
+	fi
 	#ssh $i yum -y remove "salt*" 
 	ssh $i  yum -y install $SREP; 
 	if [ $i == $SUP ]; 
