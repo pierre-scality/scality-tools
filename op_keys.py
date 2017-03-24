@@ -27,6 +27,12 @@ def usage(output):
         -o| operation can be delete undelete or physdelete
 
 """ % os.path.basename(sys.argv[0]))
+def clean_status(status):
+	#{'status': 'free', 'deleted': False, 'version': None, 'needquorum': False, 'size': None}
+	out=''
+	for i in status:
+		out='|'+str(status[i])+out
+	return out	
 
 if __name__ == "__main__":
     #options="hacr:s:f:l:p:o:"
@@ -106,7 +112,7 @@ if __name__ == "__main__":
 
     for line in fp.readlines():
 		key = Key(line)
-		print "Key to Analyse:", key.getHexPadded()
+		print "Key to Analyse :\t", key.getHexPadded()
 		if all:
 			key_list = [ key ] + [ x for x in key.getReplicas() ]
 		else:
@@ -120,7 +126,7 @@ if __name__ == "__main__":
 				print >> sys.stderr, \
 					"{0} from {1} for key {2}".format(e, check._chord.hostport, arck.getHexPadded())
 				continue
-			print  "%s;%s;%s" % ( key.getHexPadded() , arck.getHexPadded() , tab )
+			print  "Current primary :\t {0} current {1} status {2}".format(key.getHexPadded(),arck.getHexPadded(),tab)
 			if operation == "undelete":
 				if tab["deleted"] == True:
 					print "Undelete Key " , arck.getHexPadded()
@@ -130,6 +136,8 @@ if __name__ == "__main__":
 				     		print {"status": et.find("result").find("status").text}
 					except ScalFactoryExceptionTypeNotFound as e:
 				     		print "Error %s " , e
+				else:
+					print "Key {0} not deleted".format(arck.getHexPadded())
 			elif operation == "delete":
 				print "{0} Key ".format(operation,arck.getHexPadded())
 				if tab["deleted"] == True:
@@ -148,22 +156,21 @@ if __name__ == "__main__":
 			 	k = arck.getHexPadded()
 				#print arck,arck.getHexPadded(),k
 				cosk,repk = k[-2:],k[-1]
-				print "toto",k,cosk,repk
-				max=cosk[0]+cosk[0]
-				if cosk == max:
-					lookup=cosk[0]+'0'
-				else:
+				#print "toto",k,cosk,repk,cosk[0]+'0'
+				if cosk != cosk[0]+'0':
 					lookup=cosk[0]+str((int(cosk[1])-1))
-					print lookup,cosk[0],cosk[1]
+				else:
+					lookup=cosk[0]+cosk[0]
+					#print lookup,cosk[0],cosk[1]
 				s = [ x.getHexPadded() for x in arck.getReplicas() ]
 				dict={}
 				for i in s:
 					dict[i[-2:]]=i
 				predkey=dict[lookup]
-				print "pred {0} : key {1} : reps : {2}".format(predkey,str(k),str(s))
+				print "Before ops :\tkey {1} : pred {0} reps : {2}".format(predkey,str(k),str(s))
 			if check:
 				tab = check.checkLocal(arck.getHexPadded())
-				print str(arck),str(tab)
+				print "Result key {0} status {1}".format(arck.getHexPadded(),clean_status(tab))
 
     fp.close()
 
