@@ -6,7 +6,7 @@ Read keys from stdin and tries to find them by running listKeys on their node.
 import sys, os, getopt , re
 
 sys.path.insert(0,'scality')
-import subprocess
+import subprocess,httplib
 
 from scality.supervisor import Supervisor
 from scality.daemon import DaemonFactory , ScalFactoryExceptionTypeNotFound
@@ -20,6 +20,7 @@ def usage(output):
 	-a|--all deletes all the replicas
 	-c|--check check the key after operation
 	-l|--login login node login (internal credentials)
+        -k	single key to process
         -f|--filename containing a list of keys to undelete 
 	-p|--password login node password (internal credentials)
         -r|--ring ring name
@@ -31,12 +32,28 @@ def clean_status(status):
 	#{'status': 'free', 'deleted': False, 'version': None, 'needquorum': False, 'size': None}
 	out=''
 	for i in status:
-		out='|'+str(status[i])+out
+		if i == 'deleted':
+			if status[i] == False: 
+				out='|'+"NOT DELETED"+out
+			else:
+				out='|'+"DELETED"+out
+			continue
+		if i == 'version':
+			out='|'+"version "+str(status[i])+out
+			continue
+		if i == 'status':
+			if status[i] == 'free':
+				out='|'+"status NOKEY"
+			out='|'+"status "+str(status[i])+out
+			continue
+		if i == 'size':
+			out='|'+"size "+str(status[i])+out
 	return out	
+operation_list = ("rebuild","delete","physdelete","undelete")
 
 if __name__ == "__main__":
     #options="hacr:s:f:l:p:o:"
-    options="acf:hl:o:p:r:s:"
+    options="acf:k:hl:o:p:r:s:"
     long_options=["help", "check","ring=","supurl=","filename=","login=", "operation","password="]
 
     try:
@@ -69,11 +86,19 @@ if __name__ == "__main__":
 		    fp = open(a,"r")
 	    except IOError as e :
 			print e
+        elif o in ("-k"):
+            fp = open('/tmp/ops_key.entry', 'w')
+	    fp.write(a)
+	    fp.close()
+	    fp = open('/tmp/ops_key.entry',"r")
         elif o in ("-l", "--login"):
             login = a
         elif o in ("-p", "--password"):
             password = a
         elif o in ("-o","--operation"):
+            if a not in operation_list:
+		print "operation not in operation list : {0}".format(str(operation_list))
+		exit()
             operation = a
         else:
             usage(sys.stderr)
@@ -100,14 +125,7 @@ if __name__ == "__main__":
 
     for n in s.supervisorConfigDso(dsoname=ring)['nodes']:
 	nid = '%s:%s' % (n['ip'], n['chordport'])
-	nodes[nid] = DaemonFactory().get_daemon(
-            "node",
-            url='https://{0}:{1}'.format(n['ip'], n['adminport']),
-            chord_addr=n['ip'],
-            chord_port=n['chordport'],
-            dso=ring,
-            login=login,
-            passwd=password)
+	nodes[nid] = DaemonFactory().get_daemon("node",url='https://{0}:{1}'.format(n['ip'],n['adminport']),chord_addr=n['ip'],chord_port=n['chordport'],dso=ring,login=login,passwd=password)
 	if not node: node = nodes[nid]
 
     for line in fp.readlines():
@@ -126,10 +144,10 @@ if __name__ == "__main__":
 				print >> sys.stderr, \
 					"{0} from {1} for key {2}".format(e, check._chord.hostport, arck.getHexPadded())
 				continue
-			print  "Current primary :\t {0} current {1} status {2}".format(key.getHexPadded(),arck.getHexPadded(),tab)
+			print  "Current \t {0} current {1} status {2}".format(key.getHexPadded(),arck.getHexPadded(),clean_status(tab))
 			if operation == "undelete":
 				if tab["deleted"] == True:
-					print "Undelete Key " , arck.getHexPadded()
+					print "Undelete Key \t{0}",clean_status(arck.getHexPadded())
 					version = int(tab["version"]+64)
 					try:
 				     		et= check.chunkapiStoreOp(op="undelete", key=arck.getHexPadded(), extra_params={"version": version})
@@ -139,14 +157,15 @@ if __name__ == "__main__":
 				else:
 					print "Key {0} not deleted".format(arck.getHexPadded())
 			elif operation == "delete":
-				print "{0} Key ".format(operation,arck.getHexPadded())
+				#print "{0} Key {1}".format(operation,arck.getHexPadded())
 				if tab["deleted"] == True:
 					print "Key {0} already deleted".format(arck.getHexPadded())
 					continue
 				version = int(tab["version"]+64)
 				try:
 					et= check.chunkapiStoreOp(op="delete", key=arck.getHexPadded(), extra_params={"version": version})
-			     		print {"status": et.find("result").find("status").text}
+			     		#print {"status": et.find("result").find("status").text}
+					print "After operation {0} Key {1}".format(operation,arck.getHexPadded())
 				except ScalFactoryExceptionTypeNotFound as e:
 			     		print "Error %s " , e
 			elif operation == "physdelete":
@@ -162,15 +181,28 @@ if __name__ == "__main__":
 				else:
 					lookup=cosk[0]+cosk[0]
 					#print lookup,cosk[0],cosk[1]
-				s = [ x.getHexPadded() for x in arck.getReplicas() ]
+				replicas = [ x.getHexPadded() for x in arck.getReplicas() ]
 				dict={}
-				for i in s:
+				for i in replicas:
 					dict[i[-2:]]=i
 				predkey=dict[lookup]
-				print "Before ops :\tkey {1} : pred {0} reps : {2}".format(predkey,str(k),str(s))
+				print "Before ops :\tkey {1} : pred {0} reps : {2}".format(predkey,str(k),str(replicas))
+				prednode = nodes[node.findSuccessor(predkey)["address"]]
+				#print "***"+prednode.nodeGetStatus()[0]['chord_addr']
+                        	try:
+                                	tab = prednode.checkLocal(predkey)
+                        	except httplib.HTTPException as e:
+                                	print "Error on key {0}".format(arck.getHexPadded())
+                                	print >> sys.stderr, "{0} from {1} for key {2}".format(e, check._chord.hostport, arck.getHexPadded())
+                                	continue
+				print "Replicas \t{0} {1}".format(predkey,clean_status(tab))
+				start=predkey[0:38]+str(int(predkey[38:])-1)
+				#print start
+				prednode.nodeRebuild(range_start=start,number=3)
+
 			if check:
 				tab = check.checkLocal(arck.getHexPadded())
-				print "Result key {0} status {1}".format(arck.getHexPadded(),clean_status(tab))
+				print "Result key\t {0} :  {1}".format(arck.getHexPadded(),clean_status(tab))
 
     fp.close()
 
