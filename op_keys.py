@@ -49,7 +49,7 @@ def clean_status(status):
 		if i == 'size':
 			out='|'+"size "+str(status[i])+out
 	return out	
-operation_list = ("rebuild","delete","physdelete","undelete")
+operation_list = ("check","rebuild","delete","physdelete","undelete")
 
 if __name__ == "__main__":
     #options="hacr:s:f:l:p:o:"
@@ -144,7 +144,7 @@ if __name__ == "__main__":
 				print >> sys.stderr, \
 					"{0} from {1} for key {2}".format(e, check._chord.hostport, arck.getHexPadded())
 				continue
-			print  "Current \t {0} current {1} status {2}".format(key.getHexPadded(),arck.getHexPadded(),clean_status(tab))
+			#print  "Current \t {0} current {1} status {2}".format(key.getHexPadded(),arck.getHexPadded(),clean_status(tab))
 			if operation == "undelete":
 				if tab["deleted"] == True:
 					print "Undelete Key \t{0}",clean_status(arck.getHexPadded())
@@ -202,7 +202,7 @@ if __name__ == "__main__":
 
 			if check:
 				tab = check.checkLocal(arck.getHexPadded())
-				print "Result key\t {0} :  {1}".format(arck.getHexPadded(),clean_status(tab))
+				print "Result Check\t {0} :  {1}".format(arck.getHexPadded(),clean_status(tab))
 
     fp.close()
 
