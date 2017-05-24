@@ -50,7 +50,7 @@ CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
 RINGOPS=('get','set','run','status','heal','logget','logset','list')
 NODEOP_W=('set','logset')
-NODEOP_R=('get','logget','cat','list','comp','compare','stat','disk')
+NODEOP_R=('get','logget','cat','list','comp','compare','stat','disk','status')
 NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat','list')
@@ -513,6 +513,12 @@ class ring_op():
           for line in output:
             self.ifre_print(line.rstrip(),i,exact=1)
           continue
+        if self.op == 'status':
+          cmd="ringsh -r {0} -u {1} node showStatus".format(self.ring,i)
+          if len(self.param) > 0:
+            cmd=cmd+" | grep "+str(self.param)
+          self.run(cmd,i)
+          continue
         if self.op == 'disk':
           if self.sub != "node":
            print "Argument error disk is only available for node"
@@ -682,7 +688,17 @@ class ring_op():
     else:
       login='root'
       password='admin'
- 
+
+
+  def run(self,cmd,re,debug=None):
+    logging.debug("Executing :: {0}i : {1}".format(cmd,re))
+    output=self.execute(cmd)
+    for line in output:
+      self.ifre_print(line.rstrip(),re)
+    return(0)
+
+
+
  # Get the comman to execute and returnlist of output
  # Exit with 1 if error and 9 if receive unexpected param
  # psycality not implemented yet
