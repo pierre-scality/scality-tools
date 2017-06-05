@@ -504,7 +504,6 @@ class ring_op():
             output=self.execute(cmd)
             for line in output:
               self.ifre_print(line.rstrip(),i)
-            exit(0)
           else:
             #cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
             cmd="ringsh -r {0} -u {1} {2} dumpStats {3}".format(self.ring,i,self.sub,self.param[0]) 
