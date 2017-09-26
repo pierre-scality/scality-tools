@@ -59,7 +59,7 @@ SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable'
 
 RUN_EXEC=False
 RUN_LOG=False
-STRIPOUT=['Load','Use']
+STRIPOUT=['Load','Use','Adding','Done']
 PYSCAL=('py','python','pyscal','pyscality')
 PARAMFILE=None
 CREDFILE="/tmp/scality-installer-credentials"
@@ -713,7 +713,6 @@ class ring_op():
       p=subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
       stdout,stderr=p.communicate()
       tempout=stdout.split("\n")[::]
-      #print tempout
       for i in tempout:
         if not i:
           continue
