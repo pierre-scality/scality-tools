@@ -9,7 +9,18 @@ def logerror(line):
   sys.stderr.write('{0}'.format(line))
 
 def usage():
-  print "cat file | s3log.py [ -s field[:string]]"
+  print """
+  Usage : cat file | s3log.py [ -s|-k field[=/</> string]] [-p field]
+  where -s/-k is to strip or keep line which field match the string (can = or compare </>) 
+  and -p is the field to display 
+  out put format will always contains the following :
+  1506501858910:[JST-2017-09-27 17:44:18-910ms]: S3 OBJSTOHKGFDC03 TRACE
+  epoc/time/type/hostname/level
+
+  Sample :
+  cat s3-0.log | /root/Dev/scality-tools/s3log.py -k name=S3  -s httpURL=/_/healthcheck/deep -p bodyLength
+  To keep only name=S3 striping from result those with healcheck url and display the bodylength
+  """
   sys.exit(0) 
 
 def parseargs(argv):
