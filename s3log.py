@@ -5,13 +5,17 @@ import json
 import datetime,time
 import getopt
 
-def logerror(line):
-  sys.stderr.write('{0}'.format(line))
+
+
+def logerror(line,level="INFO",default="INFO"):
+  ERROR={ "CRITICAL":20, "ERROR":40, "INFO":50, "VERBOSE":60 }
+  if ERROR[level] >= ERROR[default]: 
+    sys.stderr.write('{0}'.format(line))
 
 def usage():
   print """
-  Usage : cat file | s3log.py [ -s|-k field[=/</> string]] [-p field]
-  where -s/-k is to strip or keep line which field match the string (can = or compare </>) 
+  Usage : cat file | s3log.py [ -s|-k field[= [+/-]string]] [-p field]
+  where -s/-k is to strip or keep line which field match the string (can = and string can be prefixed with + or - to filter value) 
   and -p is the field to display 
   out put format will always contains the following :
   1506501858910:[JST-2017-09-27 17:44:18-910ms]: S3 OBJSTOHKGFDC03 TRACE
@@ -26,7 +30,7 @@ def usage():
 def parseargs(argv):
   option={}
   try:
-    opts, args = getopt.getopt(argv, "dhk:p:s:", ["help"])
+    opts, args = getopt.getopt(argv, "dehk:p:s:", ["help"])
   except getopt.GetoptError:
     print "Argument error"
     usage()
@@ -40,6 +44,8 @@ def parseargs(argv):
     if opt in ("-h", "--help"):
       usage()
       end(0)
+    elif opt == '-e':
+      option["error"]="ERROR"
     elif opt == '-s':
       if "strip" not in option.keys():
         option["strip"]={}
@@ -82,6 +88,10 @@ class logInput():
     self.option={}
     self.display={}
     self.lastValid=True
+    if "error" in option:
+      self.error=option['error']
+    else:
+      self.error="INFO"
     if 'strip' in option:
       self.strip=option['strip']
     if 'keep' in option:
@@ -109,8 +119,8 @@ class logInput():
     try:
       self.struct=json.loads(self.line)
     except ValueError as e:
-      logerror("Error analsying line #{0}".format(self.counter))
-      logerror(self.line)
+      logerror("Error analsying line #{0}".format(self.counter),level=self.error)
+      logerror(self.line,level=self.error)
       self.lastValid=False
       
   def setType(self):
@@ -185,7 +195,7 @@ class logInput():
       if f in k:
         ''' if there is no value for this just test existence in the struct '''
         if field[f] == "":
-          logerror("field {0} stripped out from results")
+          logerror("field {0} empty stripped out from results {1}\n".format(f,field[f]))
           match=True
         #elif field[f] == self.struct[f]:
         elif self.compareValue(field[f],self.struct[f]):
@@ -236,7 +246,7 @@ class logInput():
   def analyseStruct(self):
     if self.lastValid == False:
       #sys.stderr.write('Line {0} is not valid\n'.format(self.counter))
-      logerror('Line {0} is not valid\n'.format(self.counter))
+      #logerror('Line {0} is not valid\n'.format(self.counter),level=self.error)
       return 9
     if self.type == "repd":
       self.name = self.getValue("name")
