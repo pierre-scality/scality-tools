@@ -37,7 +37,8 @@ dummy=[]
 file=None
 ringyaml="/etc/scality-supervisor/confv2.yaml"
 
-logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
+#logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 logger = logging.getLogger()
 
 try:
@@ -127,6 +128,7 @@ parser.add_argument('-p', '--password', nargs='?', help='password', const=passwo
 parser.add_argument('-r', '--ring-name', nargs='?', help='ring name default is DATA', const='DATA', default=RING)
 parser.add_argument('-R', '--all-rings', help='Loop on all rings', action="store_true", default=False)
 parser.add_argument('-s', '--server-name', nargs=1, help='run on a single defined node')
+#parser.add_argument('-u', '--use-name', nargs=1, help='run as -u ringsh option')
 parser.add_argument('-m', '--method', nargs='?', help='Switch internal code to ringsh or pyscality',default='ringsh')
 parser.add_argument('-c', '--compfile', nargs='?', help='List of parameters to be compared',default=PARAMFILE)
 
@@ -136,7 +138,7 @@ if args.debug==True:
   logger.setLevel(logging.DEBUG)
 
 class ring_obj():
-  def __init__(self,login,password,ring,comp="None",target="None",url="https://127.0.0.1:2443"):
+  def __init__(self,login,password,ring,comp="None",url="https://127.0.0.1:2443",target=None):
   #def __init__(self,login,password,ring,url="https://127.0.0.1:2443",type="node"):
    logger.debug("Initialisation object ring : "+str(comp))
    self.ring=ring
@@ -150,11 +152,18 @@ class ring_obj():
    self.sup = Supervisor(url=url,login=login,passwd=password)
    self.status = self.sup.supervisorConfigDso(action="view", dsoname=self.ring)
    if self.comp == 'node':
-     logger.info('Getting ring configuration')
+     logger.info('Getting ring configuration {0}'.format(self.ring))
+     ###BAD logger.debug('target are {0}'.format(target))
      for n in self.status['nodes']:
        nid = '%s:%s' % (n['ip'], n['chordport'])
        self.nodes[nid] = DaemonFactory().get_daemon("node", url='https://{0}:{1}'.format(n['ip'], n['adminport']), chord_addr=n['ip'], chord_port=n['chordport'], dso=self.ring, login=login, passwd=password)
-       self.names[nid]=n['name']
+       if n['name'] in target or target == None:
+        self.names[nid]=n['name']
+       else:
+        logger.debug("Ignoring {0} not in target".format(n['name']))
+        self.nodes.pop(nid)
+        continue
+       logger.debug("Merging node {0} configuration".format(n['name']))
        try:
          self.nodestatus[nid]=self.nodes[nid].nodeGetStatus()[0]
        except ScalDaemonException:
@@ -210,6 +219,7 @@ class ring_obj():
   def obj_config_struct(self):
     struct={}
     for this in self.nodes.keys():
+      logging.debug("Getting conf of {0}".format(this))
       if this not in struct.keys():
         struct[this]={}
       struct[this]=self.nodes[this].configViewModule()
@@ -244,6 +254,7 @@ class ring_op():
       self.method='pyscal'
     if arg.all == True:
       self.target="ALL"
+    # use name and server name are not compatiblr. use name supeseed
     elif arg.server_name is not None:
       self.target=arg.server_name
     else:
@@ -290,6 +301,7 @@ class ring_op():
     for ring in self.ring_list:
       self.ring=ring
       self.get_target()
+      logger.debug("Final target list :: "+format(self.server_list))
       self.pass_cmd()
       print
 
@@ -311,16 +323,28 @@ class ring_op():
           return
         else: 
           """ Do a regexp to avoid missing not standard component name """
-          logger.debug("Checking server to list "+current+" "+self.target[0])
-          regex=".*"+re.escape(self.target[0])+".*" 
-          rule=re.compile(regex)
-          if rule.match(current):
-            logger.debug("Adding server to list "+current)
-            self.server_list.append(current)
+          #logger.debug("Checking server to list "+current+" "+self.target[0])
+          target_list=self.target[0].split(',')
+          logger.debug("building list from {0} with {1}".format(target_list,current))
+          #for current in target_list:
+            #regex=".*"+re.escape(self.target[0])+".*" 
+            #.regex=".*"+re.escape(current)+".*" 
+            #rule=re.compile(regex)
+            #if rule.match(current):
+              #logger.debug("Adding server to list "+current)
+              #self.server_list.append(current)
+          for sub in target_list:
+              regex=".*"+re.escape(sub)+".*" 
+              rule=re.compile(regex)
+              if rule.match(current):
+                logger.debug("Adding server to list "+current)
+                self.server_list.append(current)
         
     if self.server_list == []:
       logging.debug('Cannot find name target')
       exit(2)
+
+
 
   """ function to define various informations to build commands
       comp define either ring, node or accessor 
@@ -398,7 +422,7 @@ class ring_op():
       return(0)
     elif len(self.param) == 1 or self.comp == 'supervisor' :
       """ to search when having module parameter """
-      logger.debug("ifreprint {0}".format(str(self.param)))
+      #logger.debug("ifreprint {0}".format(str(self.param)))
       pattern=self.param[field]
       if exact:
         regex=".*"+re.escape(pattern)+"\W.*"
@@ -438,6 +462,8 @@ class ring_op():
       exit(9)
     if self.method == 'pyscal':
       instance=ring_obj(self.login,self.password,self.ring,self.comp)
+      # need fix for -u
+      #instance.load_conf(self.server_list)
       instance.obj_list('all')
       return(0)
     else: 
@@ -584,6 +610,7 @@ class ring_op():
       exit(9)
   """ Compare param in dev """
   def ring_op_compare(self):
+    logger.debug('Entering func ring_op_compare')
     #source=defaultdict(lambda: defaultdict(dict))
     source={}
     result={}
@@ -592,7 +619,8 @@ class ring_op():
     except IOError as e:
       logger.error("File error({0}): {1} : {2}".format(e.errno, e.strerror,self.compfile))
       exit(9)
-    instance=ring_obj(self.login,self.password,self.ring,self.comp)
+    instance=ring_obj(self.login,self.password,self.ring,self.comp,target=self.server_list)
+    #instance.load_conf(self.target)
     objstruct=instance.obj_config_struct() 
     linenb=0
     for line in f:
