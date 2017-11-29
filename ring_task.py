@@ -14,7 +14,8 @@ from scality.daemon import DaemonFactory
 
 u="https://localhost:2443"
 l="root"
-p="DvEbRF8REAgz" 
+p="5vvou3rIjDc8" 
+ring="OWPROD"
 
 logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 logger = logging.getLogger()
@@ -85,6 +86,7 @@ class ring_obj():
       self.display=option['display']
     else:
       self.display=['move']
+    #self.timer=float(timer)
     self.prev={}
     self.current={}
  
@@ -158,7 +160,11 @@ class ring_obj():
       else:
         timetogo=keytogo/keysec/60
       #print "Task {0:10} {1:35} current {2} (prev) {6:8} total {3:8} key/sec {4:7} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev)
-      print "Task {0}\t {1}\t current {2} (prev) {6}\t total {3}\t key/sec {4}\t time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev)
+      if type == 'move':
+        dest=str(task['dest'])
+        print "Task {0:8} {1:30} to {7:20} cur {2:8} prev {6:10} total {3:8} key/sec {4:4} time to go {5:6} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest)
+      else:
+      	print "Task {0}\t {1}\t current {2} (prev) {6}\t total {3}\t key/sec {4}\t time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev)
       self.prev[tid]['prev']=current
       
   def wait_iter(self):
@@ -167,7 +173,7 @@ class ring_obj():
 
 def main():
   option=parseargs(sys.argv[1:])
-  o=ring_obj(option,ring="OWRING")
+  o=ring_obj(option,ring=ring)
   o.getconf()
   while True:
     o.get_task_list()
