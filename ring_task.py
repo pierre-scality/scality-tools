@@ -1,9 +1,10 @@
-#!/usr/bin/python
+#!/usr/bin/python -u
 
 import sys
 import logging 
 import time
 import getopt
+from datetime import datetime 
 
 sys.path.append('/usr/local/scality-ringsh/ringsh/modules')
 sys.path.append('/usr/local/scality-ringsh/ringsh')
@@ -38,7 +39,7 @@ def usage():
 def parseargs(argv):
         option={}
         try:
-                opts, args = getopt.getopt(argv, "dl:r:t:", ["help"])
+                opts, args = getopt.getopt(argv, "dl:or:t:", ["help"])
         except getopt.GetoptError:
                 print "Argument error"
                 usage()
@@ -56,6 +57,8 @@ def parseargs(argv):
                         option.update(display=dummy)
                 elif opt == '-t':
                         option.update(timer=arg)
+		elif opt == '-o':
+			option.update(outfile=True)
                 elif opt == '-r':
                         option.update(ring=arg)
         #if len(args) > 0:
@@ -89,6 +92,26 @@ class ring_obj():
     #self.timer=float(timer)
     self.prev={}
     self.current={}
+    self.valid_task={}
+    if "outfile" in option.keys():
+      self.outfile="log_ring_task-{0}".format(datetime.now().strftime('%d%m_%H%M%S'))
+      self.openlogfile()
+    else:
+      self.outfile=None
+
+  def openlogfile(self):
+    try:
+      self.fd=open("./"+self.outfile,'w')
+    except IOError as e:
+      print "cant open log file {0}".format(e) 
+      exit(9)
+    print "Opening log file {0}".format("./"+self.outfile)
+
+  def print_whats_needed(self,line):
+    print line
+    if self.outfile:
+      self.fd.write(line+"\n".encode("iso8859-1"))
+	
  
   def getconf(self):
     try:
@@ -133,40 +156,45 @@ class ring_obj():
     for task in self.tasks['tasks']:
       cur=task['type']
       if cur in self.display or self.display[0]=="all":
-      #if cur == 'move' or cur == 'rebuild':
-        self.print_task_stat_chosen(task,cur)
+        self.valid_task[task['tid']]=task	
 	done+=1
     if done == 0:
 	print "No task to display ({0})".format(','.join(self.display))
+    self.print_task_stat_chosen(cur)
     return(done)
 
-  def print_task_stat_chosen(self,task,type):
-    logger.debug("Enter print_task_stat_chosen {0}".format(str(task)))
-    node=task['node']['name']
-    total=int(task['total'])
-    current=int(task['done'])
-    remain=total-current
-    tid=task['tid']+":"+node
-    if not tid in self.prev.keys():
-      print "Task {0:10} {1:35} current {2:8} total {3:8} NEW TASK".format(type,tid,current,total) 
-      self.prev[tid]={}
-      self.prev[tid]['prev']=current
-    else:
-      prev=self.prev[tid]['prev']
-      keysec=((current-prev)/self.timer)
-      keytogo=total-current
-      if keysec == 0:
-        timetogo = 'undefined'
+  def print_task_stat_chosen(self,type):
+    for id in sorted(self.valid_task):
+      task=self.valid_task[id]
+      type=task['type']
+      logger.debug("Enter print_task_stat_chosen {0}".format(str(task)))
+      d=datetime.now().strftime('%d%m:%H%M%S')
+      node=task['node']['name']
+      total=int(task['total'])
+      current=int(task['done'])
+      remain=total-current
+      print d+" ",
+      tid=task['tid']+":"+node
+      if not tid in self.prev.keys():
+        self.print_whats_needed("Task {0:10} {1:35} current {2:8} total {3:8} NEW TASK".format(type,tid,current,total))
+        self.prev[tid]={}
+        self.prev[tid]['prev']=current
       else:
-        timetogo=keytogo/keysec/60
-      #print "Task {0:10} {1:35} current {2} (prev) {6:8} total {3:8} key/sec {4:7} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev)
-      if type == 'move':
-        dest=str(task['dest'])
-        print "Task {0:8} {1:30} to {7:20} cur {2:8} prev {6:10} total {3:8} key/sec {4:4} time to go {5:6} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest)
-      else:
-      	print "Task {0}\t {1}\t current {2} (prev) {6}\t total {3}\t key/sec {4}\t time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev)
-      self.prev[tid]['prev']=current
-      
+        prev=self.prev[tid]['prev']
+        keysec=((current-prev)/self.timer)
+        keytogo=total-current
+        if keysec == 0:
+          timetogo = 'undefined'
+        else:
+          timetogo=keytogo/keysec/60
+        if type == 'move':
+          dest=str(task['dest'])
+          self.print_whats_needed("Task {0:8} {1:30} to {7:20} cur {2:12} prev {6:12} total {3:12} key/sec {4:6} time to go {5:9} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest))
+        else:
+      	  self.print_whats_needed("Task {0:8} {1:30} cur {2:12} (prev) {6:12} total {3:12} key/sec {4:6} time to go {5:9} minutes".format(type,tid,current,total,keysec,timetogo,prev))
+        self.prev[tid]['prev']=current
+
+ 
   def wait_iter(self):
     time.sleep(self.timer) 
     print
