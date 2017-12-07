@@ -89,7 +89,6 @@ class ring_obj():
       self.display=option['display']
     else:
       self.display=['move']
-    #self.timer=float(timer)
     self.prev={}
     self.current={}
     self.valid_task={}
@@ -103,7 +102,7 @@ class ring_obj():
     try:
       self.fd=open("./"+self.outfile,'w')
     except IOError as e:
-      print "cant open log file {0}".format(e) 
+      print "cant open log file {0}".format(e)					 
       exit(9)
     print "Opening log file {0}".format("./"+self.outfile)
 
@@ -121,8 +120,8 @@ class ring_obj():
       print err
       sys.exit(1)
     logger.debug("Get conf for ring : {0}".format(self.ring))
-    #return(0)
-
+  
+  ## build task list dict ordered by task
   def get_task_list(self,type="all"):
     dict={}
     try:
@@ -132,41 +131,52 @@ class ring_obj():
       print e
     for task in self.tasks["tasks"]:
       logger.debug("Initial Task {0}".format(task))
-      if task['type'] not in dict.keys():
-        dict[task['type']]=[]
-      dict[task['type']].append(task)
-    #if int(task["flag_diskrebuild"]) != 0:
-    #  type_ = "repair"
-    #print "%s %s objects=%d/%d size=%d/%d dest=%s start=%d tid=%s" % (task["node"]["addr"], type_, int(task["done"]), int(task["total"]), int(task["size_done"]), int(task["est_size_total"]), task["dest"], int(task["starting_time"]), task["tid"])
+      if  task['type'] == "rebuild":
+        if int(task["flag_diskrebuild"]) != 0:
+    	  task['real_task'] = "repair"
+      else:
+        task['real_task'] = task['type']
+          #print "%s %s objects=%d/%d size=%d/%d dest=%s start=%d tid=%s" % (task["node"]["addr"], type_, int(task["done"]), int(task["total"]), int(task["size_done"]), int(task["est_size_total"]), task["dest"], int(task["starting_time"]), task["tid"])
+      if task['real_task'] not in dict.keys():
+        dict[task['real_task']]=[]
+      dict[task['real_task']].append(task)
     self.task=dict
-  
+
+
+  ## debug function
   def print_task(self,type="all"):
     for i in self.task.keys():
       if type == "all" or i == type:
         logger.debug('Displaying task type {0}'.format(i))
-        #for j in self.task[i]:
-        #  logger.debug('Displaying task type detail {0}'.format(str(j.keys)))
+        for j in self.task[i]:
+          logger.debug('Displaying task type detail {0}'.format(str(j.keys)))
     return(0)
 
-  def print_task_filter(self,type="all"): 
+  ## from task dict build a valid_task dict with [task type][task id] for display 
+  def task_filter(self,type="all"): 
     logger.debug("Enter print_task_filter {0}".format(self.display))
     if all in self.display:
       self.display=['all']
     done=0
-    for task in self.tasks['tasks']:
-      cur=task['type']
-      if cur in self.display or self.display[0]=="all":
-        self.valid_task[task['tid']]=task	
-	done+=1
+    for i in self.task.keys():
+      for j in self.task[i]:
+        cur=j['real_task']
+        if cur in self.display or self.display[0]=="all":
+          if cur not in self.valid_task.keys():
+            self.valid_task[cur]={}
+          self.valid_task[cur][j['tid']]=j	
+	  done+=1
     if done == 0:
 	print "No task to display ({0})".format(','.join(self.display))
-    self.print_task_stat_chosen(cur)
+    else:
+    	self.print_task_stat_chosen(cur)
     return(done)
 
+  ## self.valid_task[type][id]=task
   def print_task_stat_chosen(self,type):
-    for id in sorted(self.valid_task):
-      task=self.valid_task[id]
-      type=task['type']
+    for type in sorted(self.valid_task.keys()):
+     for id in sorted(self.valid_task[type].keys()):
+      task=self.valid_task[type][id]
       logger.debug("Enter print_task_stat_chosen {0}".format(str(task)))
       d=datetime.now().strftime('%d%m:%H%M%S')
       node=task['node']['name']
@@ -205,8 +215,8 @@ def main():
   o.getconf()
   while True:
     o.get_task_list()
-    o.print_task()
-    o.print_task_filter()
+    #o.print_task()
+    o.task_filter()
     o.wait_iter()  
   sys.exit(0)
 
