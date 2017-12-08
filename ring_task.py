@@ -4,6 +4,7 @@ import sys
 import logging 
 import time
 import getopt
+import json
 from datetime import datetime 
 
 sys.path.append('/usr/local/scality-ringsh/ringsh/modules')
@@ -12,10 +13,20 @@ from scality.node import Node
 from scality.supervisor import Supervisor
 from scality.daemon import DaemonFactory
 
+CREDFILE="/tmp/scality-installer-credentials"
+try:
+  print "Loading cred file"
+  d=open(CREDFILE,'r')
+  cred=json.load(d)
+  l=cred['internal-management-requests']['username']
+  p=cred['internal-management-requests']['password']
+  d.close()
+except IOError:
+  print "can't open cred file"
+  l="root"
+  p="5vvou3rIjDc8" 
 
 u="https://localhost:2443"
-l="root"
-p="5vvou3rIjDc8" 
 ring="OWPROD"
 
 logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
@@ -69,6 +80,10 @@ class ring_obj():
   """ class to manipulate ring objects"""
   def __init__(self,option,ring="DATA",url="https://127.0.0.1:2443",l=None,p=None):
     import config as ringsh_config
+    if 'ring' in option:
+      self.ring=option['ring']
+    else:
+        self.ring=ring
     self.url=url
     if l == None:
       self.l=ringsh_config.default_config['auth']['user']
@@ -82,7 +97,6 @@ class ring_obj():
       self.timer=int(option['timer'])
     else:
       self.timer=10
-    self.ring=ring
     self.sup = Supervisor(url=self.url, login=self.l, passwd=self.p)
     self.tasks={}
     if "display" in option.keys():
@@ -131,8 +145,7 @@ class ring_obj():
       print e
     for task in self.tasks["tasks"]:
       logger.debug("Initial Task {0}".format(task))
-      if  task['type'] == "rebuild":
-        if int(task["flag_diskrebuild"]) != 0:
+      if  task['type'] == "rebuild" and int(task["flag_diskrebuild"]) != 0:
     	  task['real_task'] = "repair"
       else:
         task['real_task'] = task['type']
@@ -158,6 +171,7 @@ class ring_obj():
     if all in self.display:
       self.display=['all']
     done=0
+    self.valid_task={}
     for i in self.task.keys():
       for j in self.task[i]:
         cur=j['real_task']
@@ -211,7 +225,7 @@ class ring_obj():
 
 def main():
   option=parseargs(sys.argv[1:])
-  o=ring_obj(option,ring=ring)
+  o=ring_obj(option)
   o.getconf()
   while True:
     o.get_task_list()
