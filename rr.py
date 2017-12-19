@@ -82,6 +82,12 @@ The set command by default do not run command but dislay it, one need to add -a 
 So to run a set command on all nodes one needs to run:
  rr.py -fa node set msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 
 
+ * node/accessor 
+ One can match a value for a given parameter 
+  msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
+    => will list component that match the value (5000)
+  msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions :5000
+    => with : at the begining of the parameter it will display NOT matching value
  * ring name 
  Ring name must be specfied with -r or use DATA as default ring name.
  One can use RING env variable instead.
@@ -172,7 +178,7 @@ class ring_obj():
    elif self.comp == 'accessor': 
      r = self.sup.supervisorConfigBizstore(action="view", dso_filter=ring)
      for i in r['restconnectors']:
-       self.rid = '%s:%s' % (i['adminaddress'], i['adminport'])
+       rid = '%s:%s' % (i['adminaddress'], i['adminport'])
        self.rs2names[rid]=i['name'] 
    else: 
      raise NotImplementedError
@@ -402,8 +408,8 @@ class ring_op():
         self.ring_op_set()
     elif self.sub=="accessor":
       if self.op not in CONNOPS:
-        logger.info("accessor command must be in "+str(CONNOPS))
-        raise ValueError("Command not valid")
+        logger.error("accessor command must be in "+str(CONNOPS))
+        exit(9)
       elif self.op in CONNOP_R:
         self.ring_op_get()
       else:
@@ -413,14 +419,14 @@ class ring_op():
       raise ValueError("Command not valid")
     return(self.op)
 
-  def ifre_print(self,line,label=None,field=0,exact=False,raw=0):
+  def ifre_print(self,line,add_label=None,field=0,exact=False,raw=0):
     if len(self.param) == 0 or raw == 1:
-      if label == None:
+      if add_label == None:
         print line
       else:
-        print label+ ": "+line
+        print add_label+ ": "+line
       return(0)
-    elif len(self.param) == 1 or self.comp == 'supervisor' :
+    elif len(self.param) == 1 or self.comp == 'supervisor' or self.op == 'logset' or self.op == 'logget':
       """ to search when having module parameter """
       #logger.debug("ifreprint {0}".format(str(self.param)))
       pattern=self.param[field]
@@ -430,27 +436,34 @@ class ring_op():
         regex=".*"+re.escape(pattern)+".*"
       rule=re.compile(regex)
       if rule.match(line):
-        if label == None:
+        if add_label == None:
           print line 
         else:
-          print label+" : "+line
+          print add_label+" : "+line
       return(0)
-    elif len(self.param) > 1:
-      logger.debug("doing exact match {0}".format(str(self.param)))
+    if len(self.param) > 1:
+      #logger.debug("doing exact match {0} step 1".format(str(self.param)))
       z={}
       for j in line.split(','):
-        z[j.split(':')[0].strip()]=j.split(':')[1].strip()
+        try:
+          z[j.split(':')[0].strip()]=j.split(':')[1].strip()
+        except IndexError as e:
+          logger.debug("Cant process output {0} : probably unexpected char or comma in {1} ".format(e,j))
+          continue
       if z['Name'] != self.param[1]:
-        logger.debug('Ignoring value '+z['Name']+' not equal to '+self.param[1])
+        #logger.debug('Ignoring value 1 '+z['Name']+' not equal to '+self.param[1])
         return(0)
-    elif len(self.param) > 2:
-      if z['Value'] != self.param[2]:
-        logger.debug('Ignoring value '+z['Value']+' not equal to '+self.param[2])
-        return(0)
-    if label == None:
+    if len(self.param) > 2:
+      if z['Value'] != self.param[2] and self.param[2][0] != ":" :
+          logger.debug('Ignoring value 2 '+z['Value']+' not equal to '+self.param[2])
+          return(0)
+      elif z['Value'] == self.param[2][1:] and self.param[2][0] == ":":
+          logger.debug('Ignoring value 2 '+z['Value']+' negative match '+self.param[2][2:])
+          return(0)
+    if add_label == None:
         print line
     else:
-        print label+ ": "+line
+        print add_label+ ": "+line
     return(0)
 
       
@@ -502,7 +515,6 @@ class ring_op():
           logging.debug("Displaying result sorting in : "+str(self.param))
           self.ifre_print(line.rstrip())
       return(0)
-      
     elif self.comp in ('accessor','node') :
       if self.op == 'cat':
         cmd="ringsh -r "+self.ring+" -u "+self.server_list[0]+" "+self.sub+" configGet "
@@ -604,7 +616,7 @@ class ring_op():
         logging.debug("run command "+self.sub+" : "+cmd)
         output=self.execute(cmd)
         for line in output:
-          self.ifre_print(line.rstrip(),i)
+          self.ifre_print(line.rstrip(),i,raw=1)
     else:
       logging.info("Component not implemented ".format(self.comp))
       exit(9)
@@ -645,7 +657,7 @@ class ring_op():
         logger.debug('Found target to compare '+str(this))
         for module in source.keys():
           for param in  source[module].keys():
-            logger.debug("Param to get "+this+":"+module+":"+param)
+            logger.debug("Param to get {0} : {1} : {2}".format(this,module,param))
             try:
               value=objstruct[this][module][param]['value']
             except KeyError as e:
@@ -664,10 +676,7 @@ class ring_op():
     return(0) 
 
   def ring_op_log(self):
-   if self.op == 'logset':
-     logging.info("Method not implemented {0} {1}".format(self.comp,self.op))
-     exit(9)
-   print str(self.sub)
+   logging.debug("comp {0} operation {1} : sub {2} => {3}".format(self.comp,self.op,self.sub,self.param))
    if self.comp == 'supervisor' and self.op == 'logget':
      cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
      output=self.execute(cmd)
@@ -676,24 +685,35 @@ class ring_op():
          continue
        else:
          self.ifre_print(line.rstrip(),self.ring)
+         #self.ifre_print(line.rstrip())
      return(0)
-   elif self.comp in ('node','accessor') and self.op == 'logget':
+   elif self.comp in ('node','accessor'):
+     if self.op == 'logget':
+       postfix=" {0} logLevelGet ".format(self.sub)
+       if len(self.param) > 0:
+         postfix="{0} {1}".format(postfix,self.param[0])
+     elif self.op == 'logset':
+       """ add 1 1 for syslog params """
+       postfix="{0} logLevelSet {1} {2} 1 1".format(self.sub,self.param[0],self.param[1])
+     else:
+       logging.info("Method not implemented {0} {1}".format(self.comp,self.op))
+       exit(9)
      for node in self.server_list :
-       cmd="ringsh -r "+self.ring+" -u "+node+" "+self.sub+" logLevelGet"
+       cmd="ringsh -r {0} -u {1} {2}".format(self.ring,node,postfix)
        output=self.execute(cmd)
        for line in output:
          if not line:
            continue
          else:
-           self.ifre_print(line.rstrip(),node)
+           if self.op == 'logget':
+             self.ifre_print(line.rstrip(),add_label=node)
+           else:
+             self.ifre_print(line.rstrip(),add_label=node)
+             #print line.rstrip()
      return(0)
    elif self.comp == 'supervisor' and self.op == 'logset': 
      cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
      output=self.execute(cmd)
-   elif self.comp in ('node','accessor') and self.op == 'logget':
-     for node in self.server_list :
-       cmd="ringsh -r "+self.ring+" -u "+node+" "+self.sub+" logLevelGet"
-       output=self.execute(cmd)
    else:
      logging.info("Method not implemented {0} {1}".format(self.comp,self.op))
      exit(9)
