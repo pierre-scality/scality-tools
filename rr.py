@@ -84,10 +84,10 @@ So to run a set command on all nodes one needs to run:
 
  * node/accessor 
  One can match a value for a given parameter 
-  msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
+  rr node get msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
     => will list component that match the value (5000)
-  msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions :5000
-    => with : at the begining of the parameter it will display NOT matching value
+  rr --rev node get msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
+    => with --rev parameter it will display NOT matching value
  * ring name 
  Ring name must be specfied with -r or use DATA as default ring name.
  One can use RING env variable instead.
@@ -137,6 +137,7 @@ parser.add_argument('-s', '--server-name', nargs=1, help='run on a single define
 #parser.add_argument('-u', '--use-name', nargs=1, help='run as -u ringsh option')
 parser.add_argument('-m', '--method', nargs='?', help='Switch internal code to ringsh or pyscality',default='ringsh')
 parser.add_argument('-c', '--compfile', nargs='?', help='List of parameters to be compared',default=PARAMFILE)
+parser.add_argument('-z','--rev', action="store_true", help='reverse pattern matching for node/rs2 params',default=False)
 
 
 args,cli=parser.parse_known_args()
@@ -151,14 +152,15 @@ class ring_obj():
    self.node=""
    self.nodes={}
    self.rs2={}
-   self.names={}
    self.rs2names={}
+   self.rs2status={}
+   self.names={}
    self.nodestatus={}
    self.comp=comp
    self.sup = Supervisor(url=url,login=login,passwd=password)
    self.status = self.sup.supervisorConfigDso(action="view", dsoname=self.ring)
    if self.comp == 'node':
-     logger.info('Getting ring configuration {0}'.format(self.ring))
+     logger.info('Getting node configuration ring {0}'.format(self.ring))
      ###BAD logger.debug('target are {0}'.format(target))
      for n in self.status['nodes']:
        nid = '%s:%s' % (n['ip'], n['chordport'])
@@ -166,7 +168,7 @@ class ring_obj():
        if n['name'] in target or target == None:
         self.names[nid]=n['name']
        else:
-        logger.debug("Ignoring {0} not in target".format(n['name']))
+        logger.debug("Ignoring node {0} not in target".format(n['name']))
         self.nodes.pop(nid)
         continue
        logger.debug("Merging node {0} configuration".format(n['name']))
@@ -176,13 +178,25 @@ class ring_obj():
          print "ERROR accessing node %s" % n['name']
        if not self.node: self.node = self.nodes[nid]
    elif self.comp == 'accessor': 
+     logger.info('Getting rs2 configuration ring {0}'.format(self.ring))
      r = self.sup.supervisorConfigBizstore(action="view", dso_filter=ring)
      for i in r['restconnectors']:
        rid = '%s:%s' % (i['adminaddress'], i['adminport'])
-       self.rs2names[rid]=i['name'] 
+       self.rs2[rid]=DaemonFactory().get_daemon("restconnector", url='https://{0}:{1}'.format(i['adminaddress'], i['adminport']), login=login, passwd=password)
+       if i['name'] in target or target == None:
+         self.names[rid]=i['name']
+       else:
+         logger.debug("Ignoring rs2 {0} not in target".format(i['name']))
+         self.rs2.pop(rid)
+         continue
+       try:
+         self.rs2status[rid]=self.rs2[rid].configViewModule()
+       except ScalDaemonException:
+         logger.error("Cant get configuration from ".format(i['name']))
    else: 
      raise NotImplementedError
      # if we reach here we are probably neither working onnode/accessor => sup 
+  
 
   def obj_list(self,param):
     logger.debug("Building list for : "+str(self.comp)+','+param)
@@ -224,16 +238,23 @@ class ring_obj():
 
   def obj_config_struct(self):
     struct={}
-    for this in self.nodes.keys():
-      logging.debug("Getting conf of {0}".format(this))
-      if this not in struct.keys():
-        struct[this]={}
-      struct[this]=self.nodes[this].configViewModule()
+    if self.comp == "node":
+      for this in self.nodes.keys():
+       logging.debug("Getting conf of {0}".format(this))
+       if this not in struct.keys():
+         struct[this]={}
+       struct[this]=self.nodes[this].configViewModule()
+    elif self.comp == "accessor":
+      for this in self.rs2.keys():
+       logging.debug("Getting conf of {0}".format(this))
+       if this not in struct.keys():
+         struct[this]={}
+       struct[this]=self.rs2[this].configViewModule()
     return(struct)  
 
 
   def obj_conf(self,target):
-    print a 
+    print target 
 
 class ring_op():
   def __init__(self,arg,cli,server_name=None):
@@ -253,6 +274,7 @@ class ring_op():
     self.server_list=[]
     self.ring_list=[]
     self.compfile=arg.compfile
+    self.rev=arg.rev
     self.all_rings=arg.all_rings
     if arg.method not in PYSCAL:
       self.method='ringsh'
@@ -347,7 +369,7 @@ class ring_op():
                 self.server_list.append(current)
         
     if self.server_list == []:
-      logging.debug('Cannot find name target')
+      logging.warning('Cannot find any target')
       exit(2)
 
 
@@ -378,7 +400,7 @@ class ring_op():
      
   """" Check valid parameter and pass to ring command """ 
   def pass_cmd(self):
-    if self.compfile != None:
+    if self.op == "compare":
       self.ring_op_compare()
       return(0)
     if self.op == 'list': 
@@ -454,11 +476,11 @@ class ring_op():
         #logger.debug('Ignoring value 1 '+z['Name']+' not equal to '+self.param[1])
         return(0)
     if len(self.param) > 2:
-      if z['Value'] != self.param[2] and self.param[2][0] != ":" :
+      if z['Value'] != self.param[2] and self.rev == False :
           logger.debug('Ignoring value 2 '+z['Value']+' not equal to '+self.param[2])
           return(0)
-      elif z['Value'] == self.param[2][1:] and self.param[2][0] == ":":
-          logger.debug('Ignoring value 2 '+z['Value']+' negative match '+self.param[2][2:])
+      elif z['Value'] == self.param[2] and self.rev == True:
+          logger.debug('Ignoring value 2 '+z['Value']+' negative match '+self.param[2])
           return(0)
     if add_label == None:
         print line
@@ -622,56 +644,57 @@ class ring_op():
       exit(9)
   """ Compare param in dev """
   def ring_op_compare(self):
-    logger.debug('Entering func ring_op_compare')
+    logger.debug('Entering func ring_op_compare with comp file "{0}"'.format(self.compfile))
     #source=defaultdict(lambda: defaultdict(dict))
     source={}
     result={}
+    if not self.compfile:
+      logger.error("compfile is not set")
+      exit(9)
     try:
       f = open(self.compfile,'r')
     except IOError as e:
       logger.error("File error({0}): {1} : {2}".format(e.errno, e.strerror,self.compfile))
       exit(9)
     instance=ring_obj(self.login,self.password,self.ring,self.comp,target=self.server_list)
-    #instance.load_conf(self.target)
     objstruct=instance.obj_config_struct() 
     linenb=0
     for line in f:
       if line.count(':') == 0:
-        logger.debug('Ignoring line : '+str(linenb))
+        logger.debug('Ignoring wrong format line : '+str(linenb))
         continue
       module=line.split(':')[0].rstrip() 
       param=line.split(':')[1].rstrip() 
-      value=None
+      refvalue=None
       if line.count(':') == 2:
-        value=line.split(':')[2].rstrip()
+        refvalue=line.split(':')[2].rstrip()
+        logger.debug('{0} {1} value to verify {2}:'.format(module,param,refvalue))
       if not module in source.keys():
         source[module]={}
       if not param in source[module].keys():
-        source[module][param]=value
+        source[module][param]=refvalue
       linenb+=1
     logger.debug('file parsed nb lines '+str(linenb))
     ip=[]
     for server in self.server_list:
-      ip.append(instance.n_to_ip(server))
-      for this in ip:
-        logger.debug('Found target to compare '+str(this))
-        for module in source.keys():
-          for param in  source[module].keys():
-            logger.debug("Param to get {0} : {1} : {2}".format(this,module,param))
-            try:
-              value=objstruct[this][module][param]['value']
-            except KeyError as e:
-              logger.info("no such key "+module+" , "+param)
-              continue
-            #print instance.ip_to_n(this)+" "+str(module)+":"+str(param)+" "+str(value)
-            index=str(module)+":"+(param)+":"+str(value) 
-            if index not in result.keys():
-              result[index]=[this]
-            else:
-              if this not in result[index]:
-                result[index].append(this)
+      logger.debug('Computing comparison on : '+str(server))
+      this=instance.n_to_ip(server)
+      for module in source.keys():
+        for param in source[module].keys():
+          try:
+            value=objstruct[this][module][param]['value']
+          except KeyError as e:
+            logger.info("No such key "+module+" , "+param)
+            continue
+          index=str(module)+":"+str(param)+":"+str(value) 
+          if source[module][param] != value and self.rev == True and source[module][param] != None:
+            logger.info("Not matching value {4} :  {0} {1} {2} {3}".format(server,module,param,value,source[module][param]))
+          if index not in result.keys():
+            result[index]=[this]
+          else:
+            if this not in result[index]:
+              result[index].append(this)
     for i in sorted(result.keys()):
-      #print i,len(result[i]),result[i]
       print i.replace(':',' '),len(result[i])
     return(0) 
 
