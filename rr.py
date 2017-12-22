@@ -86,8 +86,8 @@ So to run a set command on all nodes one needs to run:
  One can match a value for a given parameter 
   rr node get msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
     => will list component that match the value (5000)
-  rr --rev node get msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
-    => with --rev parameter it will display NOT matching value
+  rr --diff node get msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
+    => with --diff parameter it will display NOT matching value
  * ring name 
  Ring name must be specfied with -r or use DATA as default ring name.
  One can use RING env variable instead.
@@ -137,7 +137,7 @@ parser.add_argument('-s', '--server-name', nargs=1, help='run on a single define
 #parser.add_argument('-u', '--use-name', nargs=1, help='run as -u ringsh option')
 parser.add_argument('-m', '--method', nargs='?', help='Switch internal code to ringsh or pyscality',default='ringsh')
 parser.add_argument('-c', '--compfile', nargs='?', help='List of parameters to be compared',default=PARAMFILE)
-parser.add_argument('-z','--rev', action="store_true", help='reverse pattern matching for node/rs2 params',default=False)
+parser.add_argument('-z','--diff', action="store_true", help='apply component with differnt value for node/rs2 params',default=False)
 
 
 args,cli=parser.parse_known_args()
@@ -274,7 +274,7 @@ class ring_op():
     self.server_list=[]
     self.ring_list=[]
     self.compfile=arg.compfile
-    self.rev=arg.rev
+    self.diff=arg.diff
     self.all_rings=arg.all_rings
     if arg.method not in PYSCAL:
       self.method='ringsh'
@@ -406,7 +406,6 @@ class ring_op():
     if self.op == 'list': 
       self.ring_op_list()
       return(0)
-    logging.debug("Passing command : "+self.sub+" "+self.op+" Ring : "+self.ring)
     if self.op in ('logget','logset'):
       self.ring_op_log()
       return(0) 
@@ -476,10 +475,10 @@ class ring_op():
         #logger.debug('Ignoring value 1 '+z['Name']+' not equal to '+self.param[1])
         return(0)
     if len(self.param) > 2:
-      if z['Value'] != self.param[2] and self.rev == False :
+      if z['Value'] != self.param[2] and self.diff == False :
           logger.debug('Ignoring value 2 '+z['Value']+' not equal to '+self.param[2])
           return(0)
-      elif z['Value'] == self.param[2] and self.rev == True:
+      elif z['Value'] == self.param[2] and self.diff == True:
           logger.debug('Ignoring value 2 '+z['Value']+' negative match '+self.param[2])
           return(0)
     if add_label == None:
@@ -554,9 +553,6 @@ class ring_op():
       logging.debug("Entering configet/exec module :: {0}".format(self.sub))
       field=0
       for i in self.server_list :
-        #filter=None
-        #if len(self.param) == 0:
-        #  filter=self.param[0]
         """ if param[0] is set we do a regex with ifre_print """
         if self.op == 'stat':
           if len(self.param) == 0: 
@@ -565,12 +561,11 @@ class ring_op():
             for line in output:
               self.ifre_print(line.rstrip(),i)
           else:
-            #cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
             cmd="ringsh -r {0} -u {1} {2} dumpStats {3}".format(self.ring,i,self.sub,self.param[0]) 
           # to go in exact match in ifre_print set parm 1 = 0
-          output=self.execute(cmd)
-          for line in output:
-            self.ifre_print(line.rstrip(),i,exact=1)
+            output=self.execute(cmd)
+            for line in output:
+              self.ifre_print(line.rstrip(),i,exact=1)
           continue
         if self.op == 'status':
           cmd="ringsh -r {0} -u {1} node showStatus".format(self.ring,i)
@@ -602,11 +597,11 @@ class ring_op():
         """ To search module : param we check if we had more than 1 param on input and set field to 1 to pass to print command"""
         """ This is exact match """
         """ param is ['module','name','value']  """
-        cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
-        output=self.execute(cmd)
+        #cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet "+self.param[0]
+        #output=self.execute(cmd)
         #print str(len(self.param)),str(self.param)
-        for line in output:
-          self.ifre_print(line.rstrip(),i)
+        #for line in output:
+        #  self.ifre_print(line.rstrip(),i)
     return(0)
 
 
@@ -642,12 +637,10 @@ class ring_op():
     else:
       logging.info("Component not implemented ".format(self.comp))
       exit(9)
-  """ Compare param in dev """
-  def ring_op_compare(self):
-    logger.debug('Entering func ring_op_compare with comp file "{0}"'.format(self.compfile))
-    #source=defaultdict(lambda: defaultdict(dict))
+
+  def open_compare_file(self):
     source={}
-    result={}
+    linenb=0
     if not self.compfile:
       logger.error("compfile is not set")
       exit(9)
@@ -656,9 +649,6 @@ class ring_op():
     except IOError as e:
       logger.error("File error({0}): {1} : {2}".format(e.errno, e.strerror,self.compfile))
       exit(9)
-    instance=ring_obj(self.login,self.password,self.ring,self.comp,target=self.server_list)
-    objstruct=instance.obj_config_struct() 
-    linenb=0
     for line in f:
       if line.count(':') == 0:
         logger.debug('Ignoring wrong format line : '+str(linenb))
@@ -675,7 +665,15 @@ class ring_op():
         source[module][param]=refvalue
       linenb+=1
     logger.debug('file parsed nb lines '+str(linenb))
-    ip=[]
+    return(source)
+
+  def ring_op_compare(self):
+    logger.debug('Entering func ring_op_compare with comp file "{0}"'.format(self.compfile))
+    source={}
+    result={}
+    source=self.open_compare_file()
+    instance=ring_obj(self.login,self.password,self.ring,self.comp,target=self.server_list)
+    objstruct=instance.obj_config_struct() 
     for server in self.server_list:
       logger.debug('Computing comparison on : '+str(server))
       this=instance.n_to_ip(server)
@@ -687,15 +685,28 @@ class ring_op():
             logger.info("No such key "+module+" , "+param)
             continue
           index=str(module)+":"+str(param)+":"+str(value) 
-          if source[module][param] != value and self.rev == True and source[module][param] != None:
+          if source[module][param] != value and self.diff == True and source[module][param] != None:
             logger.info("Not matching value {4} :  {0} {1} {2} {3}".format(server,module,param,value,source[module][param]))
+          else:
+            logger.debug("Matching value {4} :  {0} {1} {2} {3}".format(server,module,param,value,source[module][param]))
+
           if index not in result.keys():
             result[index]=[this]
           else:
             if this not in result[index]:
               result[index].append(this)
+    fmt=[0,0,0]
+    for i in result.keys():
+      k=i.split(':')
+      for j in [0,1,2]: 
+        if fmt[j] < len(k[j]):
+          fmt[j]= len(k[j])
+
+    logger.info("Printing summary of settings")
     for i in sorted(result.keys()):
-      print i.replace(':',' '),len(result[i])
+      line = i.split(':')
+      print '%-*s : %-*s : %-*s : %s' % (fmt[0],line[0],fmt[1],line[1],fmt[2],line[2],len(result[i]))
+      #print i.replace(':',' '),len(result[i])
     return(0) 
 
   def ring_op_log(self):
@@ -707,7 +718,7 @@ class ring_op():
        if not line:
          continue
        else:
-         self.ifre_print(line.rstrip(),self.ring)
+         self.ifre_print(line.rstrsageNp(),self.ring)
          #self.ifre_print(line.rstrip())
      return(0)
    elif self.comp in ('node','accessor'):
