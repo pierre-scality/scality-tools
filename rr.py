@@ -118,6 +118,11 @@ msgstore_protocol_chord chordhttpdmaxsessions 2000 1
 msgstore_protocol_chord chordhttpdmaxsessions 2500 6
 msgstore_protocol_chord chordhttpdmaxsessions 3000 29
 
+if --diff option is set and values are defined in compare file it will display the nodes where values are different with output like :
+2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node02-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
+2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node03-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
+
+
 If you want then to check with node has different parameter you have to use :
 rr.py -a node get msgstore_protocol_chord chordhttpdmaxsessions 2500 
 It will return all nodes having this parameter
