@@ -49,7 +49,7 @@ except KeyError:
 SPECIAL=('compare')
 CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
-RINGOPS=('get','set','run','status','heal','logget','logset','list')
+RINGOPS=('get','set','run','status','heal','logget','logset','list','joinall')
 NODEOP_W=('set','logset')
 NODEOP_R=('get','logget','cat','list','comp','compare','stat','disk','status')
 NODEOPS=NODEOP_W+NODEOP_R
@@ -120,6 +120,11 @@ It will output for this parameters the number of nodes having different values  
 msgstore_protocol_chord chordhttpdmaxsessions 2000 1
 msgstore_protocol_chord chordhttpdmaxsessions 2500 6
 msgstore_protocol_chord chordhttpdmaxsessions 3000 29
+
+if --diff option is set and values are defined in compare file it will display the nodes where values are different with output like :
+2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node02-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
+2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node03-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
+
 
 If you want then to check with node has different parameter you have to use :
 rr.py -a node get msgstore_protocol_chord chordhttpdmaxsessions 2500 
@@ -416,7 +421,7 @@ class ring_op():
       if self.op not in RINGOPS:
         logger.error("ring command must be in "+str(RINGOPS)) 
         exit(9)
-      elif self.op in ("get","status","heal","logget","run"):
+      elif self.op in ("get","status","heal","logget","run","joinall"):
         self.ring_op_get()
       else:
         self.ring_op_set()
@@ -521,6 +526,12 @@ class ring_op():
         cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+" |grep "+self.param[0]
       else:
         cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| egrep -vE '(^Disk:|^Node:|^Connector:)'" 
+      output=self.execute(cmd)
+      for line in output:
+        print line.rstrip()
+      return(0)
+    elif self.comp == 'supervisor' and self.op == 'joinall':
+      cmd="ringsh -r "+self.ring+" "+self.sub+" nodeJoinAll "+self.ring
       output=self.execute(cmd)
       for line in output:
         print line.rstrip()

@@ -9,6 +9,7 @@ from datetime import datetime
 
 sys.path.append('/usr/local/scality-ringsh/ringsh/modules')
 sys.path.append('/usr/local/scality-ringsh/ringsh')
+sys.path.append('/etc/scality-ringsh/')
 from scality.node import Node
 from scality.supervisor import Supervisor
 from scality.daemon import DaemonFactory
@@ -213,6 +214,12 @@ class ring_obj():
           timetogo=keytogo/keysec/60
         if type == 'move':
           dest=str(task['dest'])
+          ip,port=dest.split(":")
+          hostn=socket.gethostbyaddr(ip)[0]
+          hostn=hostn.split('-')[0]
+          nport=int(port)-4244+1
+          dest=str(ring+"-"+hostn+"-n"+str(nport))
+
           self.print_whats_needed("Task {0:8} {1:30} to {7:20} cur {2:12} prev {6:12} total {3:12} key/sec {4:6} time to go {5:9} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest))
         else:
       	  self.print_whats_needed("Task {0:8} {1:30} cur {2:12} (prev) {6:12} total {3:12} key/sec {4:6} time to go {5:9} minutes".format(type,tid,current,total,keysec,timetogo,prev))
