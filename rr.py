@@ -63,7 +63,10 @@ RUN_LOG=False
 STRIPOUT=['Load','Use','Adding','Done']
 PYSCAL=('py','python','pyscal','pyscality')
 PARAMFILE=None
-CREDFILE="/tmp/scality-installer-credentials"
+try:
+  CREDFILE=os.environ['RRFILE']
+except:
+  CREDFILE="/tmp/scality-installer-credentials"
 login="root"
 password="admin"
 
