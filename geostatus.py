@@ -10,9 +10,10 @@ import salt.client
 import salt.config
 
 parser = argparse.ArgumentParser(description="Check server's GEO replication status")
-parser.add_argument("-r","--role",help="Specify role (not yet used)")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
+parser.add_argument("-r","--role",help="Specify role (not yet used)")
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
+parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 
 
 # Salt client breaks logging class.
@@ -20,14 +21,22 @@ parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target 
 class Msg():
   def __init__(self,level='info'):
     self.level=level
-    self.valid=['info','debug']
+    self.valid=['info','debug','verbose']
 
   def set(self,level):
-    print "{0:15} : {1}".format('INFO','Setting loglevel to debug')
+    print "{0:15} : {1}".format('INFO','Setting loglevel to '+level)
     if level not in self.valid:
       self.display("not a valid level {0}".format(level))
       return(9)
     self.level=level
+
+  def verbose(self,msg,label=None):
+    if self.level != 'info':
+      if label != None:
+        header=label
+      else:
+        header='VERBOSE'
+      print "{0:15} : {1}".format(header,msg)
 
   def info(self,msg,label=None):
     if label != None:
@@ -55,6 +64,8 @@ display=Msg('info')
 
 #args = parser.parse_args()
 args,cli=parser.parse_known_args()
+if args.verbose == True:
+  display.set('verbose')
 if args.debug==True:
   display.set('debug')
 
@@ -105,21 +116,36 @@ def verify_geo_host_processes(dict):
     display.error("There is neither GEO SOURCE or TARGET daemon running")
 
 
-#salt '*' file.file_exists /etc/passwd
-def get_cdmi_host_process():
+def get_cdmi_host_process(georole):
   display.info("Checking CDMI connector journal configuration")
   geosync=local.cmd('roles:ROLE_CONN_CDMI','file.file_exists',['/run/scality/connectors/dewpoint/config/general/geosync'],expr_form="grain")
+  #if geosync[i] == False:
+  #  display.error("Server {0} is NOT configured for journal".format(i))
+  #  return(9)
+  if georole['source'] != []:
+    role='source'
+  elif georole['target'] != []:
+    role='target'
+  else:
+    role='unknown'
+  display.debug("get_cdmi_host_process for {0} GEO role".format(role))
   for i in geosync.keys():
-  #print target,i,source[i]
-    if geosync[i] == False:
-      display.error("Server {0} is NOT configured for journal".format(i))
-    else:
-      #salt '*' file.contains => does not work with true as arg
-      geojournalon=local.cmd(i,'cmd.run',['cat /run/scality/connectors/dewpoint/config/general/geosync'])
-      if geojournalon[i] == 'true':
-        display.debug("Server {0} is running geo journal".format(i))
+    if 'cdmi' not in georole.keys():
+      georole['cdmi']=[]
+    georole['cdmi'].append(i)
+    georole[i]=['cdmi']  
+    geojournalon=local.cmd(i,'cmd.run',['cat /run/scality/connectors/dewpoint/config/general/geosync'])
+    if geojournalon[i] == 'true':
+      if role == 'source':
+        display.verbose("Server {0} is running geo journal".format(i))
       else:
-        display.debug("Server {0} is NOT running geo journal".format(i))
+        display.error("Server {0} is running geo journal BUT site is not running GEO SOURCE".format(i))
+    else:
+      if role == 'source':
+        display.error("Server {0} is NOT running geo journal AND is GEO SOURCE site".format(i))
+      else:
+        display.verbose("Server {0} is NOT running geo journal".format(i))
+          
 
 
 # salt.modules.mount.is_mounted(name)
@@ -131,8 +157,21 @@ def get_cdmi_journal_mount():
       if mount[i] == False:
         display.error("Server {0} is NOT mounting journal".format(i))
       else:
-        display.info("Server {0} is mounting journal".format(i))
+        display.verbose("Server {0} is mounting journal".format(i))
 
+def check_journal_entries(georole,journal="/journal"):
+  if len(georole['source']) == 0:
+    display.debug("There are no source daemon, do not check journal entries")
+    return(0)
+  display.info("Checking journal entries")
+  queue=local.cmd('roles:ROLE_GEO','file.find',['/journal/accepted/','name=geosync.*'],expr_form="grain")
+  srv=queue.keys()[0]
+  qfiles=queue[srv]
+  if len(qfiles) != 0:
+    display.error("Journal queue is not empty, {0} files queued".format(len(qfiles)))
+    display.debug("Remaing files"+str(qfiles))
+  else:
+    display.verbose("Journal queue is empty")
 
 def check_replication_status(dict,target=None):
   if target == None:
@@ -141,34 +180,43 @@ def check_replication_status(dict,target=None):
     display.error("Too much target hosts {0}".format(target))
     return(3)
   if len(target) == 0:
-    display.info("No target host on this site")
+    display.info("No target host, queue not checked")
     return(0)
   target=target[0]
-  display.info("Checking GEO TARGET daemon transfert queue")
+  display.info("Checking GEO TARGET daemon status")
   url="http://{0}:8381/status".format(target)
   display.debug("Using target server url {0}".format(url))
   try:
     r = requests.get(url)
   except requests.exceptions.RequestException as e:  # This is the correct syntax
-    display.error("Error connecting to GEO TARGET daemon : {0}".format(e))
+    display.error("Error connecting to GEO TARGET daemon : {0}".format(target))
+    display.debug("Error is  : {0}\n".format(e))
     return(8)
   if r.status_code == 200:
     #print(r.headers)
     #print(r.text)
     status=json.loads(r.text)
-    s=str(status["metrics"]["transfers_in_progress"]["value"])
-    transfert=s.encode('utf-8')
+    t=str(status["metrics"]["transfers_in_progress"]["value"])
+    f=str(status["metrics"]["total_failed_operations"]["value"])
+    transfert=t.encode('utf-8')
+    failures=int(f.encode('utf-8'))
     display.info("Transfert in progress {0}".format(transfert))
+    if failures != 0:
+      display.error("failed operation(s) found : {0} error(s)".format(failures))
+    else:
+      display.info("No failed operations")
   else:
-    display.error("Error querying target daemon")
+   display.error("Checking GEO TARGET daemon transfert queue")
 
 def main():
   georole=get_geo_host_processes()
-  #display.debug(georole)
   verify_geo_host_processes(georole)
-  get_cdmi_host_process()
+  #display.debug(georole)
+  check_journal_entries(georole)
+  get_cdmi_host_process(georole)
   get_cdmi_journal_mount()
   check_replication_status(georole,target=args.target)
+  display.debug(georole)
 
 if __name__ == '__main__':
   main()
