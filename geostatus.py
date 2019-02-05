@@ -72,6 +72,15 @@ if args.debug==True:
 local = salt.client.LocalClient()
 journal='/journal'
 
+def disable_proxy():
+  done=0
+  for k in list(os.environ.keys()):
+    if k.lower().endswith('_proxy'):
+      del os.environ[k]
+      done=1
+  if done != 0:
+    display.debug("Proxy has been disabled")
+
 # Checking process on geo hosts 
 def get_geo_host_processes():
   rep={}
@@ -109,7 +118,7 @@ def verify_geo_host_processes(dict):
     display.error("There is more than 1 server running GEO SOURCE")
   target=len(dict['target'])
   if target == 1:
-    display.info("Server {0} is GEO TARGET".format(dict['target']))
+    display.info("Server {0} is GEO TARGET".format(dict['target'][0]))
   elif target > 1:
     display.error("There is more than 1 server running GEO SOURCE")
   if source == 0 and target == 0:
@@ -173,24 +182,50 @@ def check_journal_entries(georole,journal="/journal"):
   else:
     display.verbose("Journal queue is empty")
 
+def guess_remote_target(hostname):
+  s=hostname.split('-')
+  if s[1] == 'prd':
+    s[1] = 'dr'
+  elif s[1] == 'dr':
+    s[1] = 'prd'
+  else:
+    return False
+  s='-'.join(s)
+  return(s)
+
+""" Target server may be passed as argument or if target site be in the georol dict """
+""" Otherwise we guess the rep server hostname by changing prd/dr in the hostname (vopp naming) """
+""" If target server passed as argument it will prevail """ 
 def check_replication_status(dict,target=None):
   if target == None:
-    target=dict['target']
-  if len(target) > 1:
-    display.error("Too much target hosts {0}".format(target))
-    return(3)
-  if len(target) == 0:
-    display.info("No target host, queue not checked")
-    return(0)
-  target=target[0]
-  display.info("Checking GEO TARGET daemon status")
+    if dict['target'] != []:
+      target=dict['target']
+    # salt return list and may (but shouldnt return several servers)
+      if len(target) > 1:
+        display.error("Too much target hosts {0}".format(target))
+        return(3)
+      else:
+        target=target[0]
+    else:
+      display.debug("No GEO TARGET server, guessing")
+      geoserver=local.cmd('roles:ROLE_GEO','cmd.run',['hostname'],expr_form="grain") 
+      geoserver=geoserver.keys()[0]
+      target=guess_remote_target(geoserver)
+      if target == False:
+        display.debug("Not GEO TARGET server found")
+        return(0)
+      else:
+        display.debug("Using guessed target server {0}".format(target))
+  else:
+    target=target[0]
+  display.info("Checking GEO TARGET {0} daemon status".format(target))
   url="http://{0}:8381/status".format(target)
   display.debug("Using target server url {0}".format(url))
   try:
     r = requests.get(url)
   except requests.exceptions.RequestException as e:  # This is the correct syntax
     display.error("Error connecting to GEO TARGET daemon : {0}".format(target))
-    display.debug("Error is  : {0}\n".format(e))
+    display.debug("Error is  : \n{0}\n".format(e))
     return(8)
   if r.status_code == 200:
     #print(r.headers)
@@ -209,6 +244,7 @@ def check_replication_status(dict,target=None):
    display.error("Checking GEO TARGET daemon transfert queue")
 
 def main():
+  disable_proxy()
   georole=get_geo_host_processes()
   verify_geo_host_processes(georole)
   #display.debug(georole)
