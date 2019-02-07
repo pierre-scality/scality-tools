@@ -81,6 +81,25 @@ def disable_proxy():
   if done != 0:
     display.debug("Proxy has been disabled")
 
+def check_server_status(list=None):
+  if list == None:
+    list=['ROLE_STORE']
+  display.debug("Checking server status for role {0}".format(list))
+  bad=[]
+  for role in list:
+    test=local.cmd('roles:'+role,'test.ping',expr_form="grain")
+    print test
+    for i in test:
+      if test[i] != True:
+        bad.append(test(i))
+        display.error("server {0} is not accessible".format(i))
+      else:
+        display.verbose("server {0} is accessible".format(i))
+  if bad != []:
+    display.error("There are some servers accessible".format(test[i]))
+
+
+
 # Checking process on geo hosts 
 def get_geo_host_processes():
   rep={}
@@ -245,6 +264,7 @@ def check_replication_status(dict,target=None):
 
 def main():
   disable_proxy()
+  check_server_status()
   georole=get_geo_host_processes()
   verify_geo_host_processes(georole)
   #display.debug(georole)
