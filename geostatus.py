@@ -8,9 +8,11 @@ import json
 import argparse
 import salt.client
 import salt.config
+import salt.runner 
 
 parser = argparse.ArgumentParser(description="Check server's GEO replication status")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
+parser.add_argument('-c', '--cont', dest='cont', action="store_true", default=False, help='If this option is set program wont quit if it finds missing servers, unexpected results may happend')
 parser.add_argument("-r","--role",help="Specify role (not yet used)")
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
@@ -50,6 +52,12 @@ class Msg():
     print "{0:15} : {1}".format(header,msg)
     if fatal:
       exit(9)
+  
+  def warning(self,msg,fatal=False):
+    header="WARNING"
+    print "{0:15} : {1}".format(header,msg)
+    if fatal:
+      exit(9)
 
   def debug(self,msg):
     if self.level == "debug":
@@ -81,23 +89,23 @@ def disable_proxy():
   if done != 0:
     display.debug("Proxy has been disabled")
 
-def check_server_status(list=None):
-  if list == None:
-    list=['ROLE_STORE']
-  display.debug("Checking server status for role {0}".format(list))
+def check_server_status():
   bad=[]
-  for role in list:
-    test=local.cmd('roles:'+role,'test.ping',expr_form="grain")
-    print test
-    for i in test:
-      if test[i] != True:
-        bad.append(test(i))
-        display.error("server {0} is not accessible".format(i))
-      else:
-        display.verbose("server {0} is accessible".format(i))
-  if bad != []:
-    display.error("There are some servers accessible".format(test[i]))
-
+  display.info("Checking all servers availability")
+  opts = salt.config.master_config('/etc/salt/master')
+  opts['quiet'] = True
+  runner = salt.runner.RunnerClient(opts)
+  ret = runner.cmd('manage.status',[])
+  display.debug(ret)
+  if 'down' in ret.keys():
+    display.verbose("server {0} is NOT accessible".format(ret['down']))
+    bad=ret['down']
+  display.verbose("All server are available")
+  display.debug("Unavailable servers {}".format(ret['down']))
+  display.debug("Available servers {}".format(ret['up']))
+  if bad == 0:
+    display.verbose("Available servers {}".format(ret['up']))
+  return bad
 
 
 # Checking process on geo hosts 
@@ -264,7 +272,13 @@ def check_replication_status(dict,target=None):
 
 def main():
   disable_proxy()
-  check_server_status()
+  down=check_server_status()
+  if down != []:
+    if not args.cont:
+      display.error('Quitting because of missing servers ({0})'.format(down),fatal=True)
+    else:
+      display.warning('There are unavailable servers which may lead to unexpected results ({0})'.format(down))
+
   georole=get_geo_host_processes()
   verify_geo_host_processes(georole)
   #display.debug(georole)
