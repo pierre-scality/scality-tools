@@ -89,10 +89,10 @@ def disable_proxy():
   if done != 0:
     display.debug("Proxy has been disabled")
 
-def check_server_status():
+def check_server_status(cont=True):
   bad=[]
   display.info("Checking all servers availability")
-  opts = salt.config.master_config('/etc/salt/master')
+  opts = salt.config.master_config('/etc/salt/master.d/60_scality.conf')
   opts['quiet'] = True
   runner = salt.runner.RunnerClient(opts)
   ret = runner.cmd('manage.status',[])
@@ -103,10 +103,28 @@ def check_server_status():
   display.verbose("All server are available")
   display.debug("Unavailable servers {}".format(ret['down']))
   display.debug("Available servers {}".format(ret['up']))
-  if bad == 0:
+  if bad == []:
     display.verbose("Available servers {}".format(ret['up']))
+  else:
+    if not args.cont:
+      display.error('Quitting because of missing servers ({0})'.format(','.join(bad)),fatal=True)
+    else:
+      display.warning('There are unavailable servers which may lead to unexpected results ({0})'.format(','.join(bad)))
   return bad
 
+def check_svsd():
+  display.info("Checking svsd service")
+  svsd=local.cmd('roles:ROLE_SVSD','service.status',['scality-svsd'],expr_form="grain")
+  bad=[]
+  for srv in svsd.keys():
+    if svsd[srv] == False:
+      bad.append(srv)
+  if bad != []:
+    display.error("Some hosts are not running svsd : {0}".format(','.join(bad))) 
+    return(9)
+  else:
+    display.debug("All servers run SVSD {0}".format(','.join(svsd.keys())))
+  return(0)
 
 # Checking process on geo hosts 
 def get_geo_host_processes():
@@ -129,9 +147,9 @@ def get_geo_host_processes():
     if i not in rep.keys():
       rep[i]=()
     if target[i] == False:
-      display.debug("Server {0} is NOT running target daemon".format(i))
+      display.debug("Server {0} is NOT running GEO TARGET".format(i))
     else:
-      display.debug("Server {0} is running target daemon".format(i))
+      display.debug("Server {0} is running GEO TARGET".format(i))
       rep[i].append('target')
       rep["target"].append(i)
   return(rep)
@@ -171,6 +189,7 @@ def get_cdmi_host_process(georole):
     georole['cdmi'].append(i)
     georole[i]=['cdmi']  
     geojournalon=local.cmd(i,'cmd.run',['cat /run/scality/connectors/dewpoint/config/general/geosync'])
+    display.debug("geo journal for {0} is {1}".format(i,geojournalon))
     if geojournalon[i] == 'true':
       if role == 'source':
         display.verbose("Server {0} is running geo journal".format(i))
@@ -272,13 +291,8 @@ def check_replication_status(dict,target=None):
 
 def main():
   disable_proxy()
-  down=check_server_status()
-  if down != []:
-    if not args.cont:
-      display.error('Quitting because of missing servers ({0})'.format(down),fatal=True)
-    else:
-      display.warning('There are unavailable servers which may lead to unexpected results ({0})'.format(down))
-
+  check_server_status(args.cont)
+  check_svsd()
   georole=get_geo_host_processes()
   verify_geo_host_processes(georole)
   #display.debug(georole)
