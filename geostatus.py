@@ -98,14 +98,11 @@ def check_server_status(cont=True):
   runner = salt.runner.RunnerClient(opts)
   ret = runner.cmd('manage.status',[])
   display.debug(ret)
-  if 'down' in ret.keys():
-    display.verbose("server {0} is NOT accessible".format(ret['down']))
+  if ret['down'] != []:
     bad=ret['down']
-  display.verbose("All server are available")
-  display.debug("Unavailable servers {}".format(ret['down']))
-  display.debug("Available servers {}".format(ret['up']))
+  display.debug("Server results {}".format(ret))
   if bad == []:
-    display.verbose("Available servers {}".format(ret['up']))
+    display.verbose("All servers available{} ".format(','.join(ret['up'])))
   else:
     if not args.cont:
       display.error('Quitting because of missing servers ({0})'.format(','.join(bad)),fatal=True)
