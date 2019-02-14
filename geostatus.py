@@ -17,6 +17,7 @@ parser.add_argument("-r","--role",help="Specify role (not yet used)")
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 
+ZKNB=5 
 
 # Salt client breaks logging class.
 # Simple msg display class
@@ -126,6 +127,49 @@ def check_svsd():
     display.debug("All servers run SVSD {0}".format(','.join(svsd.keys())))
   return(0)
 
+def verify_nfs_processes():
+  display.verbose("Checking nfs service")
+  nfs=local.cmd('roles:ROLE_CONN_NFS','service.status',['scality-sfused'],expr_form="grain")
+  bad=[]
+  nfsservercount=len(nfs.keys())
+  for srv in nfs.keys():
+    if nfs[srv] == False:
+      bad.append(srv)
+  if bad != []:
+    if nfsservercount == len(bad):
+      display.error("All NFS servers are down: {0}".format(','.join(bad))) 
+    else:
+      display.warning("Some hosts are not running NFS : {0}".format(','.join(bad))) 
+    return(9)
+  else:
+    display.debug("All servers run NFS {0}".format(','.join(nfs.keys())))
+  return(0)
+
+
+def check_zk():
+  display.verbose("Checking zookeeper status ")
+  global ZKNB
+  follower=0
+  leader=0
+  # salt -G roles:ROLE_ZK_NODE cmd.run 'echo stat | nc localhost 2181|grep Mode'
+  zk=local.cmd('roles:ROLE_ZK_NODE','cmd.run',['echo stat | nc localhost 2181|grep Mode'],expr_form="grain")
+  display.debug("Zookeeper result {0}".format(zk))
+  if len(zk.keys()) != ZKNB:
+    display.warning("Zookeeper does not run {0} instances".format(KZNB))
+  for i in zk.keys():
+    if zk[i].split(':')[1].strip() == 'follower':
+      follower=follower+1
+    elif zk[i].split(':')[1].strip() == 'leader': 
+      leader=leader+1
+    else:
+      display.error('unexpected state on zookeeper {0} {1}'.format(i,zk[i]))
+  if follower != ZKNB -1:
+    display.error('unexpected number of zookeeper follower, expect {0} found {1}'.format(ZKNB -1,follower))
+  if leader != 1:
+    display.error('Zookeeper number of master is {0}, one single leader is expected'.format(leader))
+  display.verbose('{0} leader and {1} zookeeper follower found'.format(leader,follower))
+  return(0)
+
 # Checking process on geo hosts 
 def get_geo_host_processes():
   rep={}
@@ -219,11 +263,12 @@ def check_journal_entries(georole,journal="/journal"):
     display.debug("There are no source daemon, do not check journal entries")
     return(0)
   display.info("Checking journal entries")
-  queue=local.cmd('roles:ROLE_GEO','file.find',['/journal/accepted/','name=geosync.*'],expr_form="grain")
+  # below command does not timeout even with timeout param.
+  queue=local.cmd('roles:ROLE_GEO','file.find',['/journal/accepted/','name=geosync.*'],timeout=9,expr_form="grain")
   srv=queue.keys()[0]
   qfiles=queue[srv]
   if len(qfiles) != 0:
-    display.error("Journal queue is not empty, {0} files queued".format(len(qfiles)))
+    display.warning("Journal queue is not empty, {0} files queued".format(len(qfiles)))
     display.debug("Remaing files"+str(qfiles))
   else:
     display.verbose("Journal queue is empty")
@@ -281,11 +326,14 @@ def check_replication_status(dict,target=None):
     f=str(status["metrics"]["total_failed_operations"]["value"])
     transfert=t.encode('utf-8')
     failures=int(f.encode('utf-8'))
-    display.info("Transfert in progress {0}".format(transfert))
+    if int(transfert) != 0:
+      display.warning("Transfert in progress {0}".format(transfert))
+    else:
+      display.verbose("Transfert in progress {0}".format(transfert))
     if failures != 0:
       display.error("failed operation(s) found : {0} error(s)".format(failures))
     else:
-      display.info("No failed operations")
+      display.verbose("No failed operations")
   else:
    display.error("Checking GEO TARGET daemon transfert queue")
 
@@ -293,12 +341,14 @@ def main():
   disable_proxy()
   check_server_status(args.cont)
   check_svsd()
+  check_zk()
   georole=get_geo_host_processes()
+  verify_nfs_processes()
   verify_geo_host_processes(georole)
   #display.debug(georole)
-  check_journal_entries(georole)
   get_cdmi_host_process(georole)
   get_cdmi_journal_mount()
+  check_journal_entries(georole)
   check_replication_status(georole,target=args.target)
   display.debug(georole)
 
