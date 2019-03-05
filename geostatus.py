@@ -107,7 +107,7 @@ def check_server_status(cont=True):
     if not args.cont:
       display.error('Quitting because of missing servers ({0})'.format(','.join(bad)),fatal=True)
     else:
-      display.warning('There are unavailable servers which may lead to unexpected results ({0})'.format(','.join(bad)))
+      display.error('There are unavailable servers which may lead to unexpected results ({0})'.format(','.join(bad)))
   return bad
 
 def check_svsd():
