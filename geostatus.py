@@ -124,6 +124,43 @@ def check_svsd():
     display.debug("All servers run SVSD {0}".format(','.join(svsd.keys())))
   return(0)
 
+def check_service(service,grains,label=None):
+  if label == None:
+    label = service
+  display.info("Checking {0} services".format(label))
+  resp=local.cmd('roles:'+grains,'service.status',[service],expr_form="grain")
+  display.debug('response check {0} {1}'.format(service,resp))
+  bad=[]
+  for srv in resp.keys():
+    if resp[srv] == False:
+      bad.append(srv)
+  if bad != []:
+    display.error("Some hosts are not running {1} : {0}".format(','.join(bad),service))
+    return(9)
+  else:
+    display.debug("All servers run {1} {0}".format(str(','.join(resp.keys())),service))
+  return(0)
+
+
+
+def check_samba():
+  display.info("Checking samba services")
+  srvlist=['sernet-samba-smbd','sernet-samba-smbd','sernet-samba-winbindd']
+  for this in srvlist:
+    resp=local.cmd('roles:ROLE_CONN_CIFS','service.status',[this],expr_form="grain")
+    display.debug('response check samba {0}'.format(resp))
+    bad=[]
+    for srv in resp.keys():
+      if resp[srv] == False:
+        bad.append(srv)
+    if bad != []:
+      display.error("Some hosts are not running {1} : {0}".format(','.join(bad),this)) 
+      return(9)
+    else:
+      display.debug("All servers run {1} {0}".format(str(','.join(resp.keys())),this))
+  return(0)
+
+
 def verify_nfs_processes():
   display.verbose("Checking nfs service")
   nfs=local.cmd('roles:ROLE_CONN_NFS','service.status',['scality-sfused'],expr_form="grain")
@@ -338,6 +375,8 @@ def main():
   disable_proxy()
   check_server_status(args.cont)
   check_svsd()
+  check_samba()
+  check_service('scality-dewpoint-fcgi','ROLE_CONN_CDMI',label='CDMI')
   check_zk()
   georole=get_geo_host_processes()
   verify_nfs_processes()
