@@ -13,7 +13,7 @@ import salt.runner
 parser = argparse.ArgumentParser(description="Check server's GEO replication status")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 parser.add_argument('-c', '--cont', dest='cont', action="store_true", default=False, help='If this option is set program wont quit if it finds missing servers, unexpected results may happend')
-parser.add_argument("-r","--role",help="Specify role (not yet used)")
+parser.add_argument("-r","--repli",action="store_true",help="Check replication queue only")
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 
@@ -357,13 +357,19 @@ def check_replication_status(dict,target=None):
     #print(r.text)
     status=json.loads(r.text)
     t=str(status["metrics"]["transfers_in_progress"]["value"])
+    m=str(status["metrics"]["metadata_operations_in_progress"]["value"])
     f=str(status["metrics"]["total_failed_operations"]["value"])
     transfert=t.encode('utf-8')
+    meta=m.encode('utf-8')
     failures=int(f.encode('utf-8'))
     if int(transfert) != 0:
       display.warning("Transfert in progress {0}".format(transfert))
     else:
       display.verbose("Transfert in progress {0}".format(transfert))
+    if int(meta) != 0:
+      display.warning("Metadata transfert in progress {0}".format(meta))
+    else:
+      display.verbose("Metadata transfert in progress {0}".format(transfert))
     if failures != 0:
       display.error("failed operation(s) found : {0} error(s)".format(failures))
     else:
@@ -373,20 +379,26 @@ def check_replication_status(dict,target=None):
 
 def main():
   disable_proxy()
-  check_server_status(args.cont)
-  check_svsd()
-  check_samba()
-  check_service('scality-dewpoint-fcgi','ROLE_CONN_CDMI',label='CDMI')
-  check_zk()
-  georole=get_geo_host_processes()
-  verify_nfs_processes()
-  verify_geo_host_processes(georole)
-  #display.debug(georole)
-  get_cdmi_host_process(georole)
-  get_cdmi_journal_mount()
-  check_journal_entries(georole)
-  check_replication_status(georole,target=args.target)
-  display.debug(georole)
+  if args.repli == True:
+    georole=get_geo_host_processes()
+    verify_geo_host_processes(georole)
+    check_journal_entries(georole)
+    check_replication_status(georole,target=args.target)
+  else:
+    check_server_status(args.cont)
+    check_svsd()
+    check_samba()
+    check_service('scality-dewpoint-fcgi','ROLE_CONN_CDMI',label='CDMI')
+    check_zk()
+    georole=get_geo_host_processes()
+    verify_nfs_processes()
+    verify_geo_host_processes(georole)
+    #display.debug(georole)
+    get_cdmi_host_process(georole)
+    get_cdmi_journal_mount()
+    check_journal_entries(georole)
+    check_replication_status(georole,target=args.target)
+    display.debug(georole)
 
 if __name__ == '__main__':
   main()
