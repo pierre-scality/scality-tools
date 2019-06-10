@@ -189,7 +189,7 @@ def check_zk():
   zk=local.cmd('roles:ROLE_ZK_NODE','cmd.run',['echo stat | nc localhost 2181|grep Mode'],expr_form="grain")
   display.debug("Zookeeper result {0}".format(zk))
   if len(zk.keys()) != ZKNB:
-    display.warning("Zookeeper does not run {0} instances".format(KZNB))
+    display.warning("Zookeeper does not run {0} instances".format(ZKNB))
   for i in zk.keys():
     if zk[i].split(':')[1].strip() == 'follower':
       follower=follower+1
