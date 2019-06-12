@@ -110,7 +110,18 @@ def check_server_status(cont=True):
       display.error('There are unavailable servers which may lead to unexpected results ({0})'.format(','.join(bad)))
   return bad
 
+def has_grains(grain,name):
+  ret=local.cmd("*",'grains.get',['roles'])
+  hasgrain=[]
+  for i in ret.keys():
+    if name in ret[i]:
+      hasgrain.append(i)  
+  return hasgrain 
+
 def check_svsd():
+  if has_grains('roles','ROLE_SVSD') == []:
+    display.info("No servers with role ROLE_SVSD")
+    return 
   display.info("Checking svsd service")
   svsd=local.cmd('roles:ROLE_SVSD','service.status',['scality-svsd'],expr_form="grain")
   bad=[]
@@ -128,6 +139,7 @@ def check_service(service,grains,label=None):
   if label == None:
     label = service
   display.info("Checking {0} services".format(label))
+  display.debug('roles:'+str(grains)+'service.status')
   resp=local.cmd('roles:'+grains,'service.status',[service],expr_form="grain")
   display.debug('response check {0} {1}'.format(service,resp))
   bad=[]
@@ -144,6 +156,10 @@ def check_service(service,grains,label=None):
 
 
 def check_samba():
+  if has_grains('roles','roles:ROLE_CONN_CIFS') == []:
+    display.info("No servers with role ROLE_CONN_CIFS")
+    return
+
   display.info("Checking samba services")
   srvlist=['sernet-samba-smbd','sernet-samba-smbd','sernet-samba-winbindd']
   for this in srvlist:
@@ -181,6 +197,9 @@ def verify_nfs_processes():
 
 
 def check_zk():
+  if has_grains('roles','ROLE_ZK_NODE') == []:
+    display.info("No servers with role ROLE_ZK_NODE")
+    return
   display.verbose("Checking zookeeper status ")
   global ZKNB
   follower=0
@@ -189,7 +208,7 @@ def check_zk():
   zk=local.cmd('roles:ROLE_ZK_NODE','cmd.run',['echo stat | nc localhost 2181|grep Mode'],expr_form="grain")
   display.debug("Zookeeper result {0}".format(zk))
   if len(zk.keys()) != ZKNB:
-    display.warning("Zookeeper does not run {0} instances".format(KZNB))
+    display.warning("Zookeeper does not run {0} instances".format(ZKNB))
   for i in zk.keys():
     if zk[i].split(':')[1].strip() == 'follower':
       follower=follower+1
@@ -283,9 +302,9 @@ def get_cdmi_host_process(georole):
 
 # salt.modules.mount.is_mounted(name)
 def get_cdmi_journal_mount():
-  display.info("Checking CDMI/GEO connector journal mountpoint")
   for role in ["ROLE_CONN_CDMI","ROLE_GEO"]:
-    mount=local.cmd('roles:'+role,'file.is_mounted',[journal],expr_form="grain")
+    display.info("Checking CDMI/GEO connector journal mountpoint for role {0}".format(role))
+    mount=local.cmd('roles:'+role,'mount.is_mounted',[journal],expr_form="grain")
     for i in mount.keys():
       if mount[i] == False:
         display.error("Server {0} is NOT mounting journal".format(i))
