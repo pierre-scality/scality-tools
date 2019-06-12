@@ -15,15 +15,15 @@ try:
   parser = argparse.ArgumentParser(description="Check server's process status")
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
   #parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
-  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
   parser.add_argument('-L', '--leaders', dest='leaders', action="store_true", default=False ,help='Display all 8 raft sessions leaders')
   parser.add_argument('-b', '--bucket', nargs=1, const=None, help='Display leader for a given bucket')
-  parser.add_argument('--zkcount', dest='zkcount',default=5 ,help='Specify number of ZK hosts')
+  parser.add_argument('-r', '--raft', type=int, default=-1 , help='Display a given raft session menbers')
+  parser.add_argument('-s', '--server', default="sghk1-node1" , help='Display a given raft session menbers')
+  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
   args=parser.parse_args()
 except SystemExit:
-  bad = sys.exc_info()[1]
-  #print(bad)
-  parser.print_help(sys.stderr)
+#  bad = sys.exc_info()[1]
+#  parser.print_help(sys.stderr)
   exit(9)
 
 
@@ -101,21 +101,25 @@ class Raft():
   def __init__(self):
     self.server="sghk1-node1"
 
+  def setServer(self,server):
+    display.verbose("Using {0} as acces point".format(server))
+    self.server=server
+
   def query_url(self,url):
     display.verbose("Querying url {}".format(url))
     #url="http://{0}/api/v0.1/es_proxy/_cluster/health?pretty".format(target)
     try:
       r = requests.get(url)
     except requests.exceptions.RequestException as e:
-      display.error("Error connecting to supervisor on localhost: {0}".format(target))
+      display.error("Error connecting to : {0}".format(url))
       display.debug("Error is  : \n{0}\n".format(e))
-      return(1)
+      exit(1)
     if r.status_code == 200:
       #status=json.loads(r.text)
       return(r.text)
     else:
       display.error("You request return non 200 response {0} for \n {1}".format(r.status_code,url))
-      return(r.status_code)
+      return(None)
   
   def getBucketInformation(self,bucket):
     display.verbose("getBucketInformation {0}".format(bucket))
@@ -147,20 +151,44 @@ class Raft():
   def getAllLeaders(self):
     for i in range(0,7):
       display.debug("http://"+str(self.server)+":9000//_/raft_sessions/"+str(i)+"/leader")
-      out=self.query_url("http://sghk1-node1:9000/_/raft_sessions/"+str(i)+"/leader")
+      out=self.query_url("http://"+self.server+":9000/_/raft_sessions/"+str(i)+"/leader")
+      if out == None:
+        display.error("getAllLeaders fails because request did not complete")
+        return(99)
       out=json.loads(out)
       print "Session {0} : Leader {1}".format(i,out['host'])
 
+  def getRaftSession(self,id):
+    #curl -s http://sghk1-node1:9000/_/raft_sessions/| jq '.[0]'
+    #curl -s http://sghk1-node1:9000/_/raft_sessions/7/leader
+    url="http://"+str(self.server)+":9000/_/raft_sessions/"+str(id)+"/leader"
+    leader=self.query_url(url)
+    #leader=json.loads(leader)[0]['host']
+    leader=json.loads(leader)
+    url="http://"+str(self.server)+":9000/_/raft_sessions/"
+    out=self.query_url(url)
+    out=json.loads(out)
+    print "Members for session {0} (leader is {1}) : ".format(id,leader['host'])
+    for el in out[id]['raftMembers']:
+      print el['display_name'],el['site']
+      #print el
+    #print "Session members {0}".format(out[id]['raftMembers'][0])
  
 def main():
   raft=Raft()
+  raft.setServer(args.server)
   disable_proxy()
   if args.bucket != None:
     raft.getBucketLeader(args.bucket[0])
     # Not sure how to interpret that 
-    raft.getBucketInformation(args.bucket[0])
+    # raft.getBucketInformation(args.bucket[0])
   if args.leaders == True:
     raft.getAllLeaders()
+  if args.raft >= 0:
+    if args.raft > 8:
+      display.error("Raft session cant be greater than 8")
+      exit(1)
+    raft.getRaftSession(args.raft)
 
 
 
