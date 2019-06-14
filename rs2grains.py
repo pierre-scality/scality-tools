@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(description="Check server's GEO replication sta
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 parser.add_argument('-t', '--target', nargs=1, const=None, required=True, help='MANDATORY Specify target host')
-parser.add_argument('-c', '--count', nargs=1, const=None, help='MANDATORY Interface count for RS2 connector')
+parser.add_argument('-c', '--count', nargs=1, const=None, required=True, help='MANDATORY Interface count for RS2 connector')
 parser.add_argument('-s', '--set', dest='set', action="store_true", default=False, help='If this argument is used it will set the grains RS2IF_X with the order values of secondary iface from scality:prod_iface')
 
 
@@ -110,21 +110,32 @@ def process_rs2if_grains(target,list,count,run):
   if target != resp.keys()[0]:
     display.error("something bad happends getting grains") 
     display.debug("Dumping output : \n {0}".format(resp))
+ 
+  display.verbose("OS release {0}".format(resp[target]['osrelease'])) 
+  display.verbose("IP list {0}".format(resp[target]['ipv4']) )
   for i in range(1,count+1):
     j=i-1
     grain="RS2IF_"+str(i)
     if grain in resp[target].keys():
-      display.info("Found grain {0} value {1}".format(grain,resp[target][grain]))
       if resp[target][grain] != list[j]:
         display.warning("grains {0} is set to {1} but should be {2}".format(grain,resp[target][grain],list[j]))
-      if run == True:
-        resp=local.cmd(target,'grains.setval',[grain,list[j]])
-        if resp[target][grain] != list[j]:
-          display.warning("It looks like grains in not set as expeced please check")
+      else:
+        display.info("Found grain {0} value {1} properly set".format(grain,resp[target][grain]))
+        display.verbose("Value properly set skipping")
+        continue
     else:
-      display.info("No grain {0}".format(grain))
+      display.info("No grain {0} should be {1}".format(grain,list[j]))
       display.verbose("if set was true it would have set grain {0} to {1}".format(grain,list[j]))
- 
+    if run == True:
+      display.info("Pushing grains {0} {1} to {2}".format(grain,list[j],target))
+      resp=local.cmd(target,'grains.setval',[grain,list[j]],timeout=60)
+      if resp[target][grain] != list[j]:
+        display.error("Set val fails, dumpig output :\n".format(resp),fatal=True)
+      else:
+        g,v=resp[target].popitem()
+        display.info("Set grain {0} to {1} done".format(g,v))
+        
+  return(0) 
   
   
 
