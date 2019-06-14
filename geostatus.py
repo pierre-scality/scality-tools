@@ -13,7 +13,7 @@ import salt.runner
 parser = argparse.ArgumentParser(description="Check server's GEO replication status")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 parser.add_argument('-c', '--cont', dest='cont', action="store_true", default=False, help='If this option is set program wont quit if it finds missing servers, unexpected results may happend')
-parser.add_argument("-r","--role",help="Specify role (not yet used)")
+parser.add_argument("-r","--repli",action="store_true",help="Check replication queue only")
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 
@@ -110,7 +110,18 @@ def check_server_status(cont=True):
       display.error('There are unavailable servers which may lead to unexpected results ({0})'.format(','.join(bad)))
   return bad
 
+def has_grains(grain,name):
+  ret=local.cmd("*",'grains.get',['roles'])
+  hasgrain=[]
+  for i in ret.keys():
+    if name in ret[i]:
+      hasgrain.append(i)  
+  return hasgrain 
+
 def check_svsd():
+  if has_grains('roles','ROLE_SVSD') == []:
+    display.info("No servers with role ROLE_SVSD")
+    return 
   display.info("Checking svsd service")
   svsd=local.cmd('roles:ROLE_SVSD','service.status',['scality-svsd'],expr_form="grain")
   bad=[]
@@ -123,6 +134,48 @@ def check_svsd():
   else:
     display.debug("All servers run SVSD {0}".format(','.join(svsd.keys())))
   return(0)
+
+def check_service(service,grains,label=None):
+  if label == None:
+    label = service
+  display.info("Checking {0} services".format(label))
+  display.debug('roles:'+str(grains)+'service.status')
+  resp=local.cmd('roles:'+grains,'service.status',[service],expr_form="grain")
+  display.debug('response check {0} {1}'.format(service,resp))
+  bad=[]
+  for srv in resp.keys():
+    if resp[srv] == False:
+      bad.append(srv)
+  if bad != []:
+    display.error("Some hosts are not running {1} : {0}".format(','.join(bad),service))
+    return(9)
+  else:
+    display.debug("All servers run {1} {0}".format(str(','.join(resp.keys())),service))
+  return(0)
+
+
+
+def check_samba():
+  if has_grains('roles','roles:ROLE_CONN_CIFS') == []:
+    display.info("No servers with role ROLE_CONN_CIFS")
+    return
+
+  display.info("Checking samba services")
+  srvlist=['sernet-samba-smbd','sernet-samba-smbd','sernet-samba-winbindd']
+  for this in srvlist:
+    resp=local.cmd('roles:ROLE_CONN_CIFS','service.status',[this],expr_form="grain")
+    display.debug('response check samba {0}'.format(resp))
+    bad=[]
+    for srv in resp.keys():
+      if resp[srv] == False:
+        bad.append(srv)
+    if bad != []:
+      display.error("Some hosts are not running {1} : {0}".format(','.join(bad),this)) 
+      return(9)
+    else:
+      display.debug("All servers run {1} {0}".format(str(','.join(resp.keys())),this))
+  return(0)
+
 
 def verify_nfs_processes():
   display.verbose("Checking nfs service")
@@ -144,6 +197,9 @@ def verify_nfs_processes():
 
 
 def check_zk():
+  if has_grains('roles','ROLE_ZK_NODE') == []:
+    display.info("No servers with role ROLE_ZK_NODE")
+    return
   display.verbose("Checking zookeeper status ")
   global ZKNB
   follower=0
@@ -152,7 +208,7 @@ def check_zk():
   zk=local.cmd('roles:ROLE_ZK_NODE','cmd.run',['echo stat | nc localhost 2181|grep Mode'],expr_form="grain")
   display.debug("Zookeeper result {0}".format(zk))
   if len(zk.keys()) != ZKNB:
-    display.warning("Zookeeper does not run {0} instances".format(KZNB))
+    display.warning("Zookeeper does not run {0} instances".format(ZKNB))
   for i in zk.keys():
     if zk[i].split(':')[1].strip() == 'follower':
       follower=follower+1
@@ -246,9 +302,9 @@ def get_cdmi_host_process(georole):
 
 # salt.modules.mount.is_mounted(name)
 def get_cdmi_journal_mount():
-  display.info("Checking CDMI/GEO connector journal mountpoint")
   for role in ["ROLE_CONN_CDMI","ROLE_GEO"]:
-    mount=local.cmd('roles:'+role,'file.is_mounted',[journal],expr_form="grain")
+    display.info("Checking CDMI/GEO connector journal mountpoint for role {0}".format(role))
+    mount=local.cmd('roles:'+role,'mount.is_mounted',[journal],expr_form="grain")
     for i in mount.keys():
       if mount[i] == False:
         display.error("Server {0} is NOT mounting journal".format(i))
@@ -320,13 +376,19 @@ def check_replication_status(dict,target=None):
     #print(r.text)
     status=json.loads(r.text)
     t=str(status["metrics"]["transfers_in_progress"]["value"])
+    m=str(status["metrics"]["metadata_operations_in_progress"]["value"])
     f=str(status["metrics"]["total_failed_operations"]["value"])
     transfert=t.encode('utf-8')
+    meta=m.encode('utf-8')
     failures=int(f.encode('utf-8'))
     if int(transfert) != 0:
       display.warning("Transfert in progress {0}".format(transfert))
     else:
       display.verbose("Transfert in progress {0}".format(transfert))
+    if int(meta) != 0:
+      display.warning("Metadata transfert in progress {0}".format(meta))
+    else:
+      display.verbose("Metadata transfert in progress {0}".format(transfert))
     if failures != 0:
       display.error("failed operation(s) found : {0} error(s)".format(failures))
     else:
@@ -336,18 +398,26 @@ def check_replication_status(dict,target=None):
 
 def main():
   disable_proxy()
-  check_server_status(args.cont)
-  check_svsd()
-  check_zk()
-  georole=get_geo_host_processes()
-  verify_nfs_processes()
-  verify_geo_host_processes(georole)
-  #display.debug(georole)
-  get_cdmi_host_process(georole)
-  get_cdmi_journal_mount()
-  check_journal_entries(georole)
-  check_replication_status(georole,target=args.target)
-  display.debug(georole)
+  if args.repli == True:
+    georole=get_geo_host_processes()
+    verify_geo_host_processes(georole)
+    check_journal_entries(georole)
+    check_replication_status(georole,target=args.target)
+  else:
+    check_server_status(args.cont)
+    check_svsd()
+    check_samba()
+    check_service('scality-dewpoint-fcgi','ROLE_CONN_CDMI',label='CDMI')
+    check_zk()
+    georole=get_geo_host_processes()
+    verify_nfs_processes()
+    verify_geo_host_processes(georole)
+    #display.debug(georole)
+    get_cdmi_host_process(georole)
+    get_cdmi_journal_mount()
+    check_journal_entries(georole)
+    check_replication_status(georole,target=args.target)
+    display.debug(georole)
 
 if __name__ == '__main__':
   main()
