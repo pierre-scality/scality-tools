@@ -457,7 +457,7 @@ class ring_op():
       return(0)
     elif len(self.param) == 1 or self.comp == 'supervisor' or self.op == 'logset' or self.op == 'logget':
       """ to search when having module parameter """
-      #logger.debug("ifreprint {0}".format(str(self.param)))
+      logger.debug("ifreprint {0}".format(str(self.param)))
       pattern=self.param[field]
       if exact:
         regex=".*"+re.escape(pattern)+"\W.*"
@@ -471,27 +471,28 @@ class ring_op():
           print add_label+" : "+line
       return(0)
     if len(self.param) > 1:
-      #logger.debug("doing exact match {0} step 1".format(str(self.param)))
+      logger.debug("doing exact match {0} step 1".format(str(self.param)))
       z={}
-      for j in line.split(','):
+      for j in line.split(', '):
         try:
-          z[j.split(':')[0].strip()]=j.split(':')[1].strip()
+          z[j.split(':')[0].strip()]=j.split(':',1)[1].strip()
         except IndexError as e:
           logger.debug("Cant process output {0} : probably unexpected char or comma in {1} ".format(e,j))
           continue
       if z['Name'] != self.param[1]:
         #logger.debug('Ignoring value 1 '+z['Name']+' not equal to '+self.param[1])
         return(0)
-    if len(self.param) > 2:
-      if z['Value'] != self.param[2] and self.diff == False :
-          logger.debug('Ignoring value 2 '+z['Value']+' not equal to '+self.param[2])
-          return(0)
-      elif z['Value'] == self.param[2] and self.diff == True:
-          logger.debug('Ignoring value 2 '+z['Value']+' negative match '+self.param[2])
-          return(0)
-    if add_label == None:
+      if z['Name'] == self.param[1]:
+        if len(self.param) == 3:
+          if z['Value'] != self.param[2] and self.diff == False :
+            logger.debug('Ignoring value 2 '+z['Value']+' not equal to '+self.param[2])
+            return(0)
+          elif z['Value'] == self.param[2] and self.diff == True:
+            logger.debug('Ignoring value 2 '+z['Value']+' negative match '+self.param[2])
+            return(0)
+      if add_label == None:
         print line
-    else:
+      else:
         print add_label+ ": "+line
     return(0)
 
@@ -600,13 +601,16 @@ class ring_op():
           for line in output:
             self.ifre_print(line.rstrip(),i,raw=1)
           continue 
-        if len(self.param) <=1:
+        if len(self.param) <=2:
           cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
-          logging.debug("run command :: "+self.sub+" : "+cmd)
+          logging.debug("run command : 1 param : "+self.sub+" : "+cmd)
           output=self.execute(cmd)
           #print output
           for line in output:
             self.ifre_print(line.rstrip(),i)
+        else:
+          logger.error("too many args"+str(self.param))
+          exit(2)
 	  continue
         """ To search module : param we check if we had more than 1 param on input and set field to 1 to pass to print command"""
         """ This is exact match """
