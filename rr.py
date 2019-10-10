@@ -76,6 +76,7 @@ parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpForm
 Run ringsh commands on single or several target
 The first parameter is the component and can be ring, node or rs2 (or connector) then the command.
 Basic options are get/get/list  and for log config  logset/logget 
+The set command by default do not run command but display what is should run, add the -f flag to execute the command
 
 Sample commands :
 rr.py node get            ==> Will display all nodes parameter on a single random node
@@ -88,12 +89,11 @@ rr.py node set ov_protocol_netscript  "socket\ timeout" 15
 Targeting :
 By default it runs on a single node/connector needs -a to iterate on all of them
 To select a specific server or set of server use -s <string> it will match (only string no re) target component
-The set command by default do not run command but dislay it, add the -f flag to execute the command
 if neither -a or -s are given it will take the first component available
 To select a ring use -r (if nothing specified it will use DATA, if a en variable RING is found it will use it) 
 
 Sample commands :
-rr.py -R -s node6-n3 node get chordpurgetombstonetimer                 => will display chordpurgetombstonetimer param on all ring for nodes matching "node6-n3"
+rr.py -R -s node6-n3 node get chordpurgetombstonetimer                 => will display chordpurgetombstonetimer param on all rings for nodes matching "node6-n3"
 rr.py -fa node set msgstore_protocol_chord chordhttpdmaxsessions 4000  => it will set chordhttpdmaxsessions to all nodes (for 1st ring), use -R to do on all rings
 
 Other options:
@@ -140,6 +140,8 @@ Other options:
    rr.py -a node get msgstore_protocol_chord chordhttpdmaxsessions 2500 
    It will return all nodes having this parameter
 
+Authentication:
+  Default is to check /tmp/scality-installer-credential file or use -l/-p login/password 
 ''') 
 
 parser.add_argument('-a', '--all', help='Loop on all servers', action="store_true", default=False)
@@ -164,7 +166,6 @@ if args.debug==True:
 
 class ring_obj():
   def __init__(self,login,password,ring,comp="None",url="https://127.0.0.1:2443",target=None):
-  #def __init__(self,login,password,ring,url="https://127.0.0.1:2443",type="node"):
    logger.debug("Initialisation object ring : "+str(comp))
    self.ring=ring
    self.node=""
@@ -213,8 +214,6 @@ class ring_obj():
          logger.error("Cant get configuration from ".format(i['name']))
    else: 
      raise NotImplementedError
-     # if we reach here we are probably neither working onnode/accessor => sup 
-  
 
   def obj_list(self,param):
     logger.debug("Building list for : "+str(self.comp)+','+param)
@@ -274,7 +273,6 @@ class ring_op():
   def __init__(self,arg,cli,server_name=None):
     if len(cli) < 2:
       logging.error("Need at least type and commands")
-      print parser.description
       exit(9)
     self.cli=cli
     self.comp=cli[0] # obj ad ring/node...
@@ -296,7 +294,7 @@ class ring_op():
       self.method='pyscal'
     if arg.all == True:
       self.target="ALL"
-    # use name and server name are not compatiblr. use name supeseed
+    # use name and server name are not compatible. Using name
     elif arg.server_name is not None:
       self.target=arg.server_name
     else:
@@ -380,7 +378,6 @@ class ring_op():
       exit(2)
 
 
-
   """ function to define various informations to build commands
       comp define either ring, node or accessor 
       sub is the ringsh command to run 
@@ -390,6 +387,7 @@ class ring_op():
     if self.comp=="ring":
       self.sub="supervisor"
       self.comp="supervisor"
+      # Doesn't really make sens for supervisor but fill up something
       self.grep="State"
     elif self.comp in CONN:
       self.sub="accessor"
@@ -416,34 +414,34 @@ class ring_op():
       self.ring_op_log()
       return(0) 
     if self.sub=="supervisor":
-      if self.op not in RINGOPS:
+      if self.op in RINGOP_R:
+        self.ring_op_get()
+      elif self.op in RINGOP_W:
+        self.ring_op_set()
+      else:
         logger.error("ring command must be in "+str(RINGOPS)) 
         exit(9)
-      elif self.op in RINGOP_R:
-        self.ring_op_get()
-      else:
-        self.ring_op_set()
       return(0)
-   
     if self.sub=="node":
-      if self.op not in NODEOPS:
-        logger.info("node command must be in "+str(NODEOPS))
-        exit(9)
+      if self.op in NODEOP_W:
+        self.ring_op_set()
       elif self.op in NODEOP_R:
         self.ring_op_get()
       else:
-        self.ring_op_set()
+        logger.info("node command must be in "+str(NODEOPS))
+        exit(9)
     elif self.sub=="accessor":
-      if self.op not in CONNOPS:
+      if self.op in CONNOP_R:
+        self.ring_op_get()
+      elif self.op in CONNOP_W:
+        self.ring_op_set()
+      else:
         logger.error("accessor command must be in "+str(CONNOPS))
         exit(9)
-      elif self.op in CONNOP_R:
-        self.ring_op_get()
-      else:
-        self.ring_op_set()
     else:
       logger.info("Unknow command "+self.sub)
       raise ValueError("Command not valid")
+      exit(9)
     return(self.op)
 
   # params label=None,field=0,exact=False,raw=0 are to pass to ifre_print
@@ -514,8 +512,6 @@ class ring_op():
       exit(9)
     if self.method == 'pyscal':
       instance=ring_obj(self.login,self.password,self.ring,self.comp)
-      # need fix for -u
-      #instance.load_conf(self.server_list)
       instance.obj_list('all')
       return(0)
     else: 
