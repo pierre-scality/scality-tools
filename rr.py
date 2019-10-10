@@ -49,7 +49,9 @@ except KeyError:
 SPECIAL=('compare')
 CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
-RINGOPS=('get','set','run','status','heal','logget','logset','list','joinall')
+RINGOP_W=('set','run','logset','list')
+RINGOP_R=('get','status','heal','logget','run','joinall','server')
+RINGOPS=RINGOP_W+RINGOP_R
 NODEOP_W=('set','logset')
 NODEOP_R=('get','logget','cat','list','comp','compare','stat','disk','status')
 NODEOPS=NODEOP_W+NODEOP_R
@@ -362,13 +364,6 @@ class ring_op():
           #logger.debug("Checking server to list "+current+" "+self.target[0])
           target_list=self.target[0].split(',')
           logger.debug("building list from {0} with {1}".format(target_list,current))
-          #for current in target_list:
-            #regex=".*"+re.escape(self.target[0])+".*" 
-            #.regex=".*"+re.escape(current)+".*" 
-            #rule=re.compile(regex)
-            #if rule.match(current):
-              #logger.debug("Adding server to list "+current)
-              #self.server_list.append(current)
           for sub in target_list:
               regex=".*"+re.escape(sub)+".*" 
               rule=re.compile(regex)
@@ -421,7 +416,7 @@ class ring_op():
       if self.op not in RINGOPS:
         logger.error("ring command must be in "+str(RINGOPS)) 
         exit(9)
-      elif self.op in ("get","status","heal","logget","run","joinall"):
+      elif self.op in RINGOP_R:
         self.ring_op_get()
       else:
         self.ring_op_set()
@@ -447,6 +442,20 @@ class ring_op():
       logger.info("Unknow command "+self.sub)
       raise ValueError("Command not valid")
     return(self.op)
+
+  # params add_label=None,field=0,exact=False,raw=0 are to pass to ifre_print
+  def exec_print(self,cmd,rs=False,quit=True,add_label=None,field=0,exact=False,raw=0):
+    logger.debug("exec_print {0}".format(str(cmd)))
+    output=self.execute(cmd)
+    for line in output:
+      if not line:
+        continue
+      if rs == True:
+        line=line.rstrip()
+      self.ifre_print(line)
+    if quit == True:
+      exit(0)
+    return(0)
 
   def ifre_print(self,line,add_label=None,field=0,exact=False,raw=0):
     if len(self.param) == 0 or raw == 1:
@@ -518,39 +527,36 @@ class ring_op():
 
   def ring_op_get(self):
     logging.debug("Entering function ring_op_get {0} {1}".format(str(self.comp),str(self.op)))
-    if self.comp  == 'supervisor' and self.op == 'status':
-      if len(self.param) > 0 and self.param[0] == 'long':
-        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| grep -v '^Disk'"
-      elif len(self.param) > 0 and self.param[0] == 'full':
-        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring
-      elif len(self.param) > 0:
-        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+" |grep "+self.param[0]
-      else:
-        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| egrep -vE '(^Disk:|^Node:|^Connector:)'" 
-      output=self.execute(cmd)
-      for line in output:
-        print line.rstrip()
-      return(0)
-    elif self.comp == 'supervisor' and self.op == 'joinall':
-      cmd="ringsh -r "+self.ring+" "+self.sub+" nodeJoinAll "+self.ring
-      output=self.execute(cmd)
-      for line in output:
-        print line.rstrip()
-      return(0)
-    elif self.comp == 'supervisor' and self.op in ('heal','get'):
-      cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring+" | grep -v Load"
-      output=self.execute(cmd)
-      for line in output:
-        if not line:
-          continue
-        cat=line.split()[3].rstrip(',')
-        if self.op == 'heal' :
-          if cat in SELF_HEALING:
-            print line.rstrip()
+    if self.comp  == 'supervisor': 
+      if self.op == 'status':
+        if len(self.param) > 0 and self.param[0] == 'long':
+          cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| grep -v '^Disk'"
+        elif len(self.param) > 0 and self.param[0] == 'full':
+          cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring
+        elif len(self.param) > 0:
+          cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+" |grep "+self.param[0]
         else:
-          logging.debug("Displaying result sorting in : "+str(self.param))
-          self.ifre_print(line.rstrip())
-      return(0)
+          cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| egrep -vE '(^Disk:|^Node:|^Connector:)'" 
+        self.exec_print(cmd)
+      elif self.op == 'joinall':
+        cmd="ringsh -r "+self.ring+" "+self.sub+" nodeJoinAll "+self.ring
+        self.exec_print(cmd,rs=True)
+      elif self.op in ('heal','get'):
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring+" | grep -v Load"
+        output=self.execute(cmd)
+        for line in output:
+          if not line:
+            continue
+          cat=line.split()[3].rstrip(',')
+          if self.op == 'heal' :
+            if cat in SELF_HEALING:
+              print line.rstrip()
+          else:
+            logging.debug("Displaying result sorting in : "+str(self.param))
+            self.ifre_print(line.rstrip())
+      elif self.op == 'server':
+        cmd="ringsh -r "+self.ring+" "+self.sub+" serverList | grep -v Load"
+        self.exec_print(cmd)
     elif self.comp in ('accessor','node') :
       if self.op == 'cat':
         cmd="ringsh -r "+self.ring+" -u "+self.server_list[0]+" "+self.sub+" configGet "
@@ -605,7 +611,6 @@ class ring_op():
           cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
           logging.debug("run command : 1 param : "+self.sub+" : "+cmd)
           output=self.execute(cmd)
-          #print output
           for line in output:
             self.ifre_print(line.rstrip(),i)
         else:
@@ -729,16 +734,13 @@ class ring_op():
 
   def ring_op_log(self):
    logging.debug("comp {0} operation {1} : sub {2} => {3}".format(self.comp,self.op,self.sub,self.param))
-   if self.comp == 'supervisor' and self.op == 'logget':
-     cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
-     output=self.execute(cmd)
-     for line in output:
-       if not line:
-         continue
-       else:
-         self.ifre_print(line.rstrsageNp(),self.ring)
-         #self.ifre_print(line.rstrip())
-     return(0)
+   if self.comp == 'supervisor': 
+     if self.op == 'logget':
+       cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
+     else:
+       cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
+     self.exec_print(cmd,rs=True)
+     # former print was    self.ifre_print(line.rstrip(),self.ring)
    elif self.comp in ('node','accessor'):
      if self.op == 'logget':
        postfix=" {0} logLevelGet ".format(self.sub)
@@ -752,20 +754,7 @@ class ring_op():
        exit(9)
      for node in self.server_list :
        cmd="ringsh -r {0} -u {1} {2}".format(self.ring,node,postfix)
-       output=self.execute(cmd)
-       for line in output:
-         if not line:
-           continue
-         else:
-           if self.op == 'logget':
-             self.ifre_print(line.rstrip(),add_label=node)
-           else:
-             self.ifre_print(line.rstrip(),add_label=node)
-             #print line.rstrip()
-     return(0)
-   elif self.comp == 'supervisor' and self.op == 'logset': 
-     cmd="ringsh -r "+self.ring+" "+self.sub+" logLevelGet"
-     output=self.execute(cmd)
+       self.exec_print(cmd,rs=True)
    else:
      logging.info("Method not implemented {0} {1}".format(self.comp,self.op))
      exit(9)
@@ -778,6 +767,7 @@ class ring_op():
    now=time.strftime('%X %x %Z')
    print "LOG : "+now+" : "+cmd 
 
+  ## OLD
   def open_ring_access(self):
     if os.path.exists(ringyaml):
       defyaml=yaml.load(open(ringyaml))
