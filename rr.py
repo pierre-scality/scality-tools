@@ -58,7 +58,7 @@ NODEOPS=NODEOP_W+NODEOP_R
 CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat','list')
 CONNOPS=CONNOP_W+CONNOP_R
-SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable','chordrepair_enable','chordcsd_enable','chordcsd_ringsplit_blocktasks','chordcsd_ringsplit_minhiwat','chordcsd_ringsplit_minlowat','chordcsd_ringsplit_unblocktasks')
+SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable','chordrepair_enable','chordcsd_enable')
 
 RUN_EXEC=False
 RUN_LOG=False
@@ -74,63 +74,71 @@ password="admin"
 
 parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,description='''
 Run ringsh commands on single or several target
+The first parameter is the component and can be ring, node or rs2 (or connector) then the command.
+Basic options are get/get/list  and for log config  logset/logget 
 
 Sample commands :
-rr.py node get   ==> Will display all nodes parameter on a single random node
-rr.py node get timeout ==> a parameter can be added to limit output on this string
-rr.py rs2 get   ==> Will display all rs2 connector  parameter on a single random (accept rs2/res/accessor/conn/connector keyword)
-rr.py ring get rebuild   ==> will display ring parameter matching rebuild
-rr.py -a -f -r META node set ov_interface_admin maxsessions 100 => when parameter has a space use \ like ov_protocol_netscript "socket\ timeout" 29 
+rr.py node get            ==> Will display all nodes parameter on a single random node
+rr.py node get timeout    ==> a parameter can be added to limit output on this string
+rr.py rs2 get             ==> Will display all rs2 connector  parameter on a single random (accept rs2/res/accessor/conn/connector keyword)
+rr.py ring get rebuild    ==> will display ring parameter matching rebuild
+For set when parameter has a space use \ like ov_protocol_netscript "socket\ timeout" 15
+rr.py node set ov_protocol_netscript  "socket\ timeout" 15
 
+Targeting :
 By default it runs on a single node/connector needs -a to iterate on all of them
-The set command by default do not run command but dislay it, one need to add -a flag
-So to run a set command on all nodes one needs to run:
- rr.py -fa node set msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 
+To select a specific server or set of server use -s <string> it will match (only string no re) target component
+The set command by default do not run command but dislay it, add the -f flag to execute the command
+if neither -a or -s are given it will take the first component available
+To select a ring use -r (if nothing specified it will use DATA, if a en variable RING is found it will use it) 
 
- * node/accessor 
- One can match a value for a given parameter 
-  rr node get msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
-    => will list component that match the value (5000)
-  rr --diff node get msgstore_protocol_chord chordhttpdmaxsessionschordhttpdmaxsessions 5000
-    => with --diff parameter it will display NOT matching value
- * ring name 
- Ring name must be specfied with -r or use DATA as default ring name.
- One can use RING env variable instead.
+Sample commands :
+rr.py -R -s node6-n3 node get chordpurgetombstonetimer                 => will display chordpurgetombstonetimer param on all ring for nodes matching "node6-n3"
+rr.py -fa node set msgstore_protocol_chord chordhttpdmaxsessions 4000  => it will set chordhttpdmaxsessions to all nodes (for 1st ring), use -R to do on all rings
 
- * ring status 
- ring status [long | full ] : gives ringStatus with just general status or all but Disk with long param and all with full
- ring status xxx where xxx is neither long or full will grep the string out of the ringStatus output
+Other options:
+  ring
+    * ring status 
+    ring status [long | full ] : gives ringStatus with just general status or all but Disk with long param and all with full
+    ring status xxx where xxx is neither long or full will grep the string out of the ringStatus output
 
- * log settings 
- node logget/logset syntax as for node/connector
+    * ring server
+    show ring server list, you can match a string with "ring server something" => will match lines with "something"
 
- * statistics
- node stat [param]
- Node statistics (dumpstat) without arg list all stats
- With 1 parameter do an exact match of the path
+    * ring joinall
+    join all the nodes of a given ring
 
- * disk 
- run diskConfigGet for the target
+    * ring help
+    show the basic heal healing params (auto join, auto rebuild ...)
 
- * compare mode (node only for now)
- -c <param file> node compare
-You can compare node parameters based on a text file (with -c parameter file) 
-with format module:parameter as below (unlimited number of lines) as :
-  msgstore_protocol_chord:chordhttpdmaxsessions
+  node
+   * statistics
+   node stat [param]
+   Node statistics (dumpstat) without arg list all stats
+   With 1 parameter do an exact match of the path
 
-It will output for this parameters the number of nodes having different values  :
-msgstore_protocol_chord chordhttpdmaxsessions 2000 1
-msgstore_protocol_chord chordhttpdmaxsessions 2500 6
-msgstore_protocol_chord chordhttpdmaxsessions 3000 29
+   * disk 
+   run diskConfigGet for the target
 
-if --diff option is set and values are defined in compare file it will display the nodes where values are different with output like :
-2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node02-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
-2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node03-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
+   * compare mode (node only for now)
+   -c <param file> node compare
+   You can compare node parameters based on a text file (with -c parameter file) 
+   with format module:parameter as below (unlimited number of lines) as :
+   msgstore_protocol_chord:chordhttpdmaxsessions
+
+   It will output for this parameters the number of nodes having different values  :
+   msgstore_protocol_chord chordhttpdmaxsessions 2000 1
+   msgstore_protocol_chord chordhttpdmaxsessions 2500 6
+   msgstore_protocol_chord chordhttpdmaxsessions 3000 29
+
+   if --diff option is set and values are defined in compare file it will display the nodes where values are different with output like :
+   2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node02-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
+   2018-02-13 16:16:27,359 : INFO : ring_op_compare: Not matching value 100 :  DATA-node03-n1 msgstore_protocol_chord chordpurgetombstoneexpirationtime 3600
 
 
-If you want then to check with node has different parameter you have to use :
-rr.py -a node get msgstore_protocol_chord chordhttpdmaxsessions 2500 
-It will return all nodes having this parameter
+   If you want then to check with node has different parameter you have to use :
+   rr.py -a node get msgstore_protocol_chord chordhttpdmaxsessions 2500 
+   It will return all nodes having this parameter
 
 ''') 
 
@@ -261,10 +269,6 @@ class ring_obj():
          struct[this]={}
        struct[this]=self.rs2[this].configViewModule()
     return(struct)  
-
-
-  def obj_conf(self,target):
-    print target 
 
 class ring_op():
   def __init__(self,arg,cli,server_name=None):
@@ -397,7 +401,6 @@ class ring_op():
       self.grep="Node"
     else:
       logger.info("Invalid command "+self.comp)
-      ##raise ValueError("Type not valid ")
       exit(1)
     ##self.get_target()
      
@@ -425,7 +428,7 @@ class ring_op():
     if self.sub=="node":
       if self.op not in NODEOPS:
         logger.info("node command must be in "+str(NODEOPS))
-        exit(5)
+        exit(9)
       elif self.op in NODEOP_R:
         self.ring_op_get()
       else:
@@ -443,8 +446,8 @@ class ring_op():
       raise ValueError("Command not valid")
     return(self.op)
 
-  # params add_label=None,field=0,exact=False,raw=0 are to pass to ifre_print
-  def exec_print(self,cmd,rs=False,quit=True,add_label=None,field=0,exact=False,raw=0):
+  # params label=None,field=0,exact=False,raw=0 are to pass to ifre_print
+  def exec_print(self,cmd,rs=False,quit=True,label=None,field=0,exact=False,raw=0):
     logger.debug("exec_print {0}".format(str(cmd)))
     output=self.execute(cmd)
     for line in output:
@@ -452,21 +455,21 @@ class ring_op():
         continue
       if rs == True:
         line=line.rstrip()
-      self.ifre_print(line)
+      self.ifre_print(line,label,field,exact,raw)
     if quit == True:
       exit(0)
     return(0)
 
-  def ifre_print(self,line,add_label=None,field=0,exact=False,raw=0):
+  def ifre_print(self,line,label=None,field=0,exact=False,raw=0):
     if len(self.param) == 0 or raw == 1:
-      if add_label == None:
+      if label == None:
         print line
       else:
-        print add_label+ ": "+line
+        print label+ ": "+line
       return(0)
     elif len(self.param) == 1 or self.comp == 'supervisor' or self.op == 'logset' or self.op == 'logget':
       """ to search when having module parameter """
-      logger.debug("ifreprint {0}".format(str(self.param)))
+      # to verbose logger.debug("ifreprint {0}".format(str(self.param)))
       pattern=self.param[field]
       if exact:
         regex=".*"+re.escape(pattern)+"\W.*"
@@ -474,10 +477,10 @@ class ring_op():
         regex=".*"+re.escape(pattern)+".*"
       rule=re.compile(regex)
       if rule.match(line):
-        if add_label == None:
+        if label == None:
           print line 
         else:
-          print add_label+" : "+line
+          print label+" : "+line
       return(0)
     if len(self.param) > 1:
       logger.debug("doing exact match {0} step 1".format(str(self.param)))
@@ -499,14 +502,11 @@ class ring_op():
           elif z['Value'] == self.param[2] and self.diff == True:
             logger.debug('Ignoring value 2 '+z['Value']+' negative match '+self.param[2])
             return(0)
-      if add_label == None:
+      if label == None:
         print line
       else:
-        print add_label+ ": "+line
+        print label+ ": "+line
     return(0)
-
-      
-      
 
   def ring_op_list(self):
     if self.comp not in ('accessor','node','supervisor'):
@@ -519,10 +519,12 @@ class ring_op():
       instance.obj_list('all')
       return(0)
     else: 
-      cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+" | grep "+self.grep+":"
-      output=self.execute(cmd)
-      for line in output:
-        print line.rstrip()
+      if self.comp == 'supervisor':
+        cmd="ringsh -r "+self.ring+" supervisor ringList"
+      else:
+        cmd="ringsh -r "+self.ring+" supervisor ringStatus "+self.ring+" | grep "+self.grep+": | awk '{print $2}'"
+      logging.debug("Listing ".format(cmd))
+      self.exec_print(cmd,rs=1)
     return(0)
 
   def ring_op_get(self):
@@ -578,41 +580,29 @@ class ring_op():
         if self.op == 'stat':
           if len(self.param) == 0: 
             cmd="ringsh -r {0} -u {1} {2} dumpStats".format(self.ring,i,self.sub)
-            output=self.execute(cmd)
-            for line in output:
-              self.ifre_print(line.rstrip(),i)
+            self.exec_print(cmd,label=i)
           else:
             cmd="ringsh -r {0} -u {1} {2} dumpStats {3}".format(self.ring,i,self.sub,self.param[0]) 
-          # to go in exact match in ifre_print set parm 1 = 0
-            output=self.execute(cmd)
-            for line in output:
-              self.ifre_print(line.rstrip(),i,exact=1)
+            self.exec_print(cmd,rs=True,label=i,exact=1)
           continue
         if self.op == 'status':
           cmd="ringsh -r {0} -u {1} node showStatus".format(self.ring,i)
           if len(self.param) > 0:
             cmd=cmd+" | grep "+str(self.param)
-          self.run(cmd,i)
+          self.exec_print(cmd,label=i)
           continue
         if self.op == 'disk':
           if self.sub != "node":
            print "Argument error disk is only available for node"
            exit(9)
-          #command=' '.join(map(str, self.param[0:]))
-          command="diskConfigGet"
-          cmd="ringsh -r {0} -u {1} {2} {3}".format(self.ring,i,self.sub,command)
+          cmd="ringsh -r {0} -u {1} {2} {3}".format(self.ring,i,self.sub,"diskConfigGet")
           logging.debug("run command :: "+self.sub+" : "+cmd)
-          output=self.execute(cmd)
-          #print output
-          for line in output:
-            self.ifre_print(line.rstrip(),i,raw=1)
+          self.exec_print(cmd,label=i,rs=True,raw=1)
           continue 
         if len(self.param) <=2:
           cmd="ringsh -r "+self.ring+" -u "+i+" "+self.sub+" configGet"
           logging.debug("run command : 1 param : "+self.sub+" : "+cmd)
-          output=self.execute(cmd)
-          for line in output:
-            self.ifre_print(line.rstrip(),i)
+          self.exec_print(cmd,label=i,rs=True)
         else:
           logger.error("too many args"+str(self.param))
           exit(2)
@@ -777,16 +767,6 @@ class ring_op():
     else:
       login='root'
       password='admin'
-
-
-  def run(self,cmd,re,debug=None):
-    logging.debug("Executing :: {0}i : {1}".format(cmd,re))
-    output=self.execute(cmd)
-    for line in output:
-      self.ifre_print(line.rstrip(),re)
-    return(0)
-
-
 
  # Get the comman to execute and returnlist of output
  # Exit with 1 if error and 9 if receive unexpected param
