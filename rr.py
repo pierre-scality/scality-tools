@@ -445,7 +445,7 @@ class ring_op():
     return(self.op)
 
   # params label=None,field=0,exact=False,raw=0 are to pass to ifre_print
-  def exec_print(self,cmd,rs=False,quit=True,label=None,field=0,exact=False,raw=0):
+  def exec_print(self,cmd,rs=False,quit=False,label=None,field=0,exact=False,raw=0):
     logger.debug("exec_print {0}".format(str(cmd)))
     output=self.execute(cmd)
     for line in output:
@@ -467,7 +467,7 @@ class ring_op():
       return(0)
     elif len(self.param) == 1 or self.comp == 'supervisor' or self.op == 'logset' or self.op == 'logget':
       """ to search when having module parameter """
-      # to verbose logger.debug("ifreprint {0}".format(str(self.param)))
+      # too verbose logger.debug("ifreprint {0}".format(str(self.param)))
       pattern=self.param[field]
       if exact:
         regex=".*"+re.escape(pattern)+"\W.*"
@@ -535,7 +535,7 @@ class ring_op():
           cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+" |grep "+self.param[0]
         else:
           cmd="ringsh -r "+self.ring+" "+self.sub+" ringStatus "+self.ring+"| egrep -vE '(^Disk:|^Node:|^Connector:)'" 
-        self.exec_print(cmd)
+        self.exec_print(cmd,raw=1)
       elif self.op == 'joinall':
         cmd="ringsh -r "+self.ring+" "+self.sub+" nodeJoinAll "+self.ring
         self.exec_print(cmd,rs=True)
