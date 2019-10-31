@@ -4,13 +4,18 @@ import sys
 import json
 import datetime,time
 import getopt
+import logging
 
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
+@property
+def log(obj):
+    logging.addLevelName(5, 'TRACE')
+    myLogger = logging.getLogger(obj.__class__.__name__)
+    setattr(myLogger, 'trace', lambda *args: myLogger.log(5, *args))
+    return myLogger
 
+logger = logging.getLogger()
 
-def logerror(line,level="INFO",default="INFO"):
-  ERROR={ "CRITICAL":20, "ERROR":40, "INFO":50, "VERBOSE":60 }
-  if ERROR[level] >= ERROR[default]: 
-    sys.stderr.write('{0}'.format(line))
 
 def usage():
   print """
@@ -30,7 +35,7 @@ def usage():
 def parseargs(argv):
   option={}
   try:
-    opts, args = getopt.getopt(argv, "dehk:p:s:", ["help"])
+    opts, args = getopt.getopt(argv, "dhk:p:s:", ["help"])
   except getopt.GetoptError:
     print "Argument error"
     usage()
@@ -38,14 +43,12 @@ def parseargs(argv):
   for i,el in enumerate(opts):
     if '-d' in el:
       opts.pop(i)
-      option["debug"]="debug"
+      logger.setLevel(logging.DEBUG)
   for opt, arg in opts:
     #dummy.append(opt)
     if opt in ("-h", "--help"):
       usage()
       end(0)
-    elif opt == '-e':
-      option["error"]="ERROR"
     elif opt == '-s':
       if "strip" not in option.keys():
         option["strip"]={}
@@ -73,10 +76,9 @@ def parseargs(argv):
 
 
 class logInput():
-  def __init__(self,line="",pipe=False,option={}):
+  def __init__(self,line="",option={}):
     self.count=0
     self.skip=0
-    self.pipe=pipe
     self.type="repd"
     self.debug=0
     self.line=line
@@ -88,10 +90,6 @@ class logInput():
     self.option={}
     self.display={}
     self.lastValid=True
-    if "error" in option:
-      self.error=option['error']
-    else:
-      self.error="INFO"
     if 'strip' in option:
       self.strip=option['strip']
     if 'keep' in option:
@@ -102,10 +100,8 @@ class logInput():
   def readLine(self,line):
     self.lastValid=True
     self.counter+=1
-    if self.pipe == False:
-      self.line=line
-    else:
-      logerror("readline pipe true no implemented")  
+    self.line=line
+    #logger.trace("Line {0}".format(self.line))
 
   def putLine(self,string="line"):
     if string == "line":
@@ -119,8 +115,7 @@ class logInput():
     try:
       self.struct=json.loads(self.line)
     except ValueError as e:
-      logerror("Error analsying line #{0}".format(self.counter),level=self.error)
-      logerror(self.line,level=self.error)
+      logger.debug("Error parsing line #{0} : {1}".format(self.counter,self.line))
       self.lastValid=False
       
   def setType(self):
@@ -128,8 +123,8 @@ class logInput():
   
   def getValue(self,param,struct=None,keep=True):
     if not param in self.struct.keys():
-      logerror("Structure is not as expected {0} line {1}".format(self.count,param))
-      self.putLine()
+      logger.debug("Param not found {0} line {1}".format(self.count,param,self.line))
+      #self.putLine()
       return()
     if not keep:
       ret=self.struct.pop(param)
@@ -156,18 +151,16 @@ class logInput():
     elif operator =="-":
       operator="<"
       asked=asked[1:]
-    #logerror("DEBUG {0} : {1} \n".format(asked,have))
     if operator not in ('>','<'):
       if str(asked) == str(have):
         return True
     else:
-      #logerror("DEBUG {0} : {1} \n".format(asked,have))
       ''' verify values before comparison '''
       for i in asked,have:
         try:
           int(i)
         except ValueError:
-          logerror("{0} is not integer".format(i))
+          logger.debug("{0} is not integer".format(i))
           return False
       if operator == '>':
         if int(have) > int(asked):
@@ -190,12 +183,11 @@ class logInput():
     k=self.struct.keys()
     ''' check all elements of field in line struct '''
     for f in field.keys():
-      #logerror("DEBUG {0} : {1}  {2}\n".format(f,field[f],what))
       ''' look if strip value is in line struct. '''
       if f in k:
         ''' if there is no value for this just test existence in the struct '''
         if field[f] == "":
-          logerror("field {0} empty stripped out from results {1}\n".format(f,field[f]))
+          logger.debug("field {0} empty stripped out from results {1}\n".format(f,field[f]))
           match=True
         #elif field[f] == self.struct[f]:
         elif self.compareValue(field[f],self.struct[f]):
@@ -242,11 +234,10 @@ class logInput():
       out+=cur
     return(out)
     
-
+  # Analyse the parsed result and display
   def analyseStruct(self):
     if self.lastValid == False:
-      #sys.stderr.write('Line {0} is not valid\n'.format(self.counter))
-      #logerror('Line {0} is not valid\n'.format(self.counter),level=self.error)
+      logger.error('Line {0} is not valid\n'.format(self.counter),level=self.error)
       return 9
     if self.type == "repd":
       self.name = self.getValue("name")
@@ -255,11 +246,11 @@ class logInput():
       else:
         payload = self.defaultExtract()
       if payload == None:
-        #logerror("Line skipped")
         return None
       self.date = self.getValue("time",keep=False) 
       self.fulldate = self.convertDate(self.date)
-      print "{0}:{1} {2} {3}".format(self.date,self.fulldate,self.name,payload)
+      #print "{0}:{1} {2} {3}".format(self.date,self.fulldate,self.name,payload)
+      print "{0}:{1} {2}".format(self.fulldate,self.name,payload)
     else:
       print "type {} not implemented".format(type)
 
