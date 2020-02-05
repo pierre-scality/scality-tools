@@ -139,20 +139,21 @@ serverkey={}
 print 'Key per node'
 for i in range(keyspace.size()):
         assigned=keyspace.show(i)[0]
+        srv=keyspace.show(i)[2].split('-')[1]
         if i == 0:
             pred=keyspace.show(keyspace.size()-1)[0]
             keyrange=int(FF,16)-int(pred,16)+int(assigned,16)
         else:
             pred=keyspace.show(i-1)[0]
             keyrange=int(assigned,16)-int(pred,16)
-        if keyspace.show(i)[3] not in serverkey.keys():
-            serverkey[keyspace.show(i)[3]]=keyrange
+        if srv not in serverkey.keys():
+            serverkey[srv]=keyrange
         else:
-            serverkey[keyspace.show(i)[3]]+=keyrange
+            serverkey[srv]+=keyrange
         print keyspace.show(i)[2],"\t",keyspace.show(i)[0],pred,keyrange
 
 print 'key per server'
-for server in serverkey.keys():
+for server in sorted(serverkey.keys()):
     print "{0:20s} {1}".format(server,serverkey[server])
 
 if __name__ == "__main__":
