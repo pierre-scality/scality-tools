@@ -7,19 +7,20 @@ import logging
 
 parser = argparse.ArgumentParser(description="Check server's GEO replication status")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
-parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
-parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 parser.add_argument('-g', '--grains', dest='grains', action="store_true", default=False ,help='Get list of servers sorted  by grains')
+parser.add_argument('-s', '--sls', dest='sls', action="store_true", default=False ,help='Generate sls for hosts (in /tmp)')
+parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target hosts, use all to loop on all minions')
+parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 
 args,cli=parser.parse_known_args()
 
 
-#logging.basicConfig(format='%(asctime)s : %(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
+logging.basicConfig(format='%(asctime)s : %(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 #logger = logging.getLogger()
 logger = logging.getLogger(__name__)
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-logger.addHandler(ch)
+#ch = logging.StreamHandler()
+#ch.setLevel(logging.DEBUG)
+#logger.addHandler(ch)
 
 
 if args.debug==True:
@@ -40,7 +41,7 @@ def disable_proxy():
       del os.environ[k]
       done=1
   if done != 0:
-    display.debug("Proxy has been disabled")
+    logger.debug("Proxy has been disabled")
 
 class MyRing():
   def __init__(self,target='all'):
@@ -49,6 +50,7 @@ class MyRing():
     self.grains = {} 
     self.get_grains()
     self.isnode = False
+    self.sls = False
  
   def get_grains(self):
     logger.debug('Getting all grains')
@@ -108,7 +110,7 @@ class MyRing():
     if self.target == 'all' :
       logger.info("No specific target asked, will no go to all servers")
       return(0) 
-    serverinfo=["id","productname","mem_total","os","osrelease","SSDs"]
+    serverinfo=["id","productname","cpu_model","mem_total","os","osrelease","SSDs"]
     hdd=["rot_count","rot_size"]
     sdd=["ssd_count","ssd_size"]
     disable_proxy()
@@ -121,7 +123,6 @@ class MyRing():
     fd.close()
     #grains=grains[self.target]
     logger.debug("outdump file : {}".format(outdump))
-    self.get_value(grains,'cpu_model') 
    
     if grains['os_family'] != "RedHat":
       print 'WARNING : Support only RH family'
@@ -169,30 +170,54 @@ class MyRing():
       return(0)
     self.get_scal_pillar(self.target)
     pillar=self.pillar[self.target] 
+    localpillar={ 'scality' : ''}
     if 'supervisor_ip' in pillar:
-      print "Supervisor ip : {}".format(pillar['supervisor_ip'])
+      print "supervisor_ip : {}".format(pillar['supervisor_ip'])
+      localpillar['  supervisor_ip']=pillar['supervisor_ip']
     else:
       print "No supervisor ip defined"
-    if 'data_ip' in pillar:
-      print "data_ip : {}".format(pillar['supervisor_ip'])
-    elif 'data_iface' in pillar:
-      ipv4 = self.grains[self.target]['ip4_interfaces']      
-      print "data_ip (from data_iface): {}".format(pillar['supervisor_ip'])
-    else:
-      print "Neither data_ip or data_iface found"
+    for i in ['data','mgmt']:
+      if i+'_ip' in pillar:
+        print "{}_ip : {}".format(i,pillar[i+'_ip'])
+        localpillar['  '+i+'_iface']=pillar[i+'_ip']
+      elif i+'_iface' in pillar:
+        ipv4 = self.grains[self.target]['ip4_interfaces']      
+        print "{}_ip : {} # from  (from data_iface)".format(i,pillar[i+'_iface'])
+        # We do not add _iface to pillar
+        localpillar['  '+i+'_ip']=pillar[i+'_iface']
+      else:
+        print "Neither {}_ip or {}_iface found".format(i,i)
+    if self.sls:
+      self.createsls(localpillar)
+
+  def createsls(self,dict):
+    for i in dict.keys():
+      print "{} : {}".format(i,dict[i]) 
+
+  def mainloop(self,l):
+    for i in l:
+      self.set_target(i)
+      self.get_srv_info()
+      self.get_if_info()
+      
 
 def main():
+  l=[]
   R=MyRing()
+  if args.sls == True:
+    R.sls = True
   if args.target != None:
-    R.set_target(args.target[0])
-    R.get_srv_info()
-    R.get_if_info()
-  elif args.grains == True:
+    if args.target[0] == 'all' :
+      l=R.grains.keys()
+      R.mainloop(l)
+    else:
+      R.mainloop(args.target)
+  if args.grains == True:
     R.display_roles()    
-  else:
-    print "Did you use -t or -g ?"
-    exit(9)
- 
+  #else:
+  #  print "Did you use -t or -g ?"
+  #  exit(9)
+  print  
 if __name__ == '__main__':
   main()
 else:
