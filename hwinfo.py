@@ -5,10 +5,12 @@ from datetime import datetime
 import argparse
 import logging 
 
-parser = argparse.ArgumentParser(description="Check server's GEO replication status")
+parser = argparse.ArgumentParser(description="Help to understand ring setting and create installation files  including pillar/csv")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 parser.add_argument('-g', '--grains', dest='grains', action="store_true", default=False ,help='Get list of servers sorted  by grains')
-parser.add_argument('-s', '--sls', dest='sls', action="store_true", default=False ,help='Generate sls for hosts (in /tmp)')
+parser.add_argument('-p', '--platform', dest='platform', action="store_true", default=False ,help='Generate plateform description file for hosts')
+parser.add_argument('-q', '--quiet', dest='quiet', action="store_true", default=False ,help='Do not display general information on each host')
+parser.add_argument('-s', '--sls', dest='sls', action="store_true", default=False ,help='Generate pillar.sls for hosts (in /tmp)')
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target hosts, use all to loop on all minions')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 
@@ -44,13 +46,17 @@ def disable_proxy():
     logger.debug("Proxy has been disabled")
 
 class MyRing():
-  def __init__(self,target='all'):
+  def __init__(self,args,target='all'):
     self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'store' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' }
+    self.csvbanner=['data_ip', 'data_iface', 'mgmt_ip', 'mgmt_iface', 's3_ip', 's3_iface', 'svsd_ip', 'svsd_iface', 'ring_membership', 'role', 'minion_id', 'enclosure', 'site', '#cpu', 'cpu', 'ram', '#nic', 'nic_size', '#os_disk', 'os_disk_size', '#data_disk', 'data_disk_size', '#raid_card', 'raid_cache', 'raid_card_type', '#ssd', 'ssd_size', '#ssd_for_s3', 'ssd_for_s3_size']
     self.target = target
     self.grains = {} 
     self.get_grains()
     self.isnode = False
     self.sls = False
+    self.silent =  args.quiet
+    self.platform =  args.platform
+    self.csv = {}
  
   def get_grains(self):
     logger.debug('Getting all grains')
@@ -79,8 +85,7 @@ class MyRing():
 
   def get_value(self,l,v,displ=True):
     if v in l.keys():
-      if displ == True:
-        print "{} : {}".format(v,l[v])
+      self.pr_silent("{} : {}".format(v,l[v]))
       return(l[v])
     else:
       logger.debug("Value {} not found".format(v))
@@ -125,7 +130,7 @@ class MyRing():
     logger.debug("outdump file : {}".format(outdump))
    
     if grains['os_family'] != "RedHat":
-      print 'WARNING : Support only RH family'
+      logger.warning('WARNING : Support only RH family')
     for i in serverinfo:
       self.get_value(grains,i)
 
@@ -146,13 +151,14 @@ class MyRing():
         continue
       dcount+=1
       dlist.append(this)
-    print "Raw disks list : {}\nRaw disks count : {} ".format(dlist,dcount)
-
+    self.pr_silent("Raw disks list : {}\nRaw disks count : {} ".format(dlist,dcount))
+    self.add_csv(self.target,'minion_id',self.target)
     hd=self.analyse_disks(mounted)
     if 'ROLE_STORE' in self.grains[self.target]:
-      print "Scality hdd found : {}".format(hd[0]) 
-      print "Scality ssd found : {}".format(hd[1]) 
-
+      self.pr_silent("Scality hdd found : {}".format(hd[0])) 
+      self.pr_silent("Scality ssd found : {}".format(hd[1]))
+    self.add_csv(self.target,'#hdd',format(hd[0]))
+    self.add_csv(self.target,'#ssd',format(hd[1]))
     for this in  grains['ip4_interfaces'].keys():
       if this == 'lo':
         continue
@@ -160,9 +166,8 @@ class MyRing():
         if args.debug:
           print 'DEBUG : interface without ip v4'+this 
       else:
-        print "{} : {}".format(this,grains['ip4_interfaces'][this][0]) 
-
-    self.get_value(grains,'roles') 
+        self.pr_silent("{} : {}".format(this,grains['ip4_interfaces'][this][0])) 
+    #self.get_value(grains,'roles') 
 
   def get_if_info(self):
     if self.target == 'all' :
@@ -172,21 +177,22 @@ class MyRing():
     pillar=self.pillar[self.target] 
     localpillar={ 'scality' : ''}
     if 'supervisor_ip' in pillar:
-      print "supervisor_ip : {}".format(pillar['supervisor_ip'])
+      self.pr_silent("supervisor_ip : {}".format(pillar['supervisor_ip']))
       localpillar['  supervisor_ip']=pillar['supervisor_ip']
     else:
-      print "No supervisor ip defined"
+      self.pr_silent("No supervisor ip defined")
     for i in ['data','mgmt']:
       if i+'_ip' in pillar:
-        print "{}_ip : {}".format(i,pillar[i+'_ip'])
+        self.pr_silent("{}_ip : {}".format(i,pillar[i+'_ip']))
         localpillar['  '+i+'_iface']=pillar[i+'_ip']
+        self.add_csv(self.target,i,pillar[i+'_ip'])
       elif i+'_iface' in pillar:
         ipv4 = self.grains[self.target]['ip4_interfaces']      
-        print "{}_ip : {} # from  (from data_iface)".format(i,pillar[i+'_iface'])
-        # We do not add _iface to pillar
+        self.pr_silent("{}_ip : {} # from  (from data_iface)".format(i,pillar[i+'_iface']))
         localpillar['  '+i+'_ip']=pillar[i+'_iface']
+        self.add_csv(self.target,i,pillar[i+'_iface'])
       else:
-        print "Neither {}_ip or {}_iface found".format(i,i)
+       self.pr_silent("Neither {}_ip or {}_iface found".format(i,i))
     if self.sls:
       self.createsls(localpillar)
 
@@ -194,18 +200,45 @@ class MyRing():
     for i in dict.keys():
       print "{} : {}".format(i,dict[i]) 
 
+  def add_csv(self,host,p,v):
+    if not host in self.csv.keys():
+      self.csv[host] = {}
+      for field in self.csvbanner:
+        self.csv[host].update({field:''})
+    self.csv[host].update({p:v})
+
+  def print_csv(self):
+    for header in self.csvbanner:
+      print header+',',
+    print
+    for i in self.csv.keys():
+      for header in self.csvbanner:
+        print str(self.csv[i][header])+",",
+
+  def pr_silent(self,msg):
+    if self.silent == False:  
+      print msg
+
   def mainloop(self,l):
+    logger.debug("Main loop with args {}".format(l))
     for i in l:
       self.set_target(i)
       self.get_srv_info()
       self.get_if_info()
-      
+    if self.platform == True:
+      self.print_csv() 
 
 def main():
   l=[]
-  R=MyRing()
+#  print args.silent
+  if args.grains == False and args.target==None:
+    logger.info("Did you use -t or -g ?")
+    parser.print_help()
+    exit(1)
+  R=MyRing(args)
   if args.sls == True:
     R.sls = True
+  logger.debug("Checking target {}".format(args.target))
   if args.target != None:
     if args.target[0] == 'all' :
       l=R.grains.keys()
@@ -214,10 +247,7 @@ def main():
       R.mainloop(args.target)
   if args.grains == True:
     R.display_roles()    
-  #else:
-  #  print "Did you use -t or -g ?"
-  #  exit(9)
-  print  
+  exit(0)
 if __name__ == '__main__':
   main()
 else:
