@@ -17,7 +17,7 @@ parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target 
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 args, ukn = parser.parse_known_args()
 
-logging.basicConfig(format='%(asctime)s : %(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
+logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 #logger = logging.getLogger()
 logger = logging.getLogger(__name__)
 #ch = logging.StreamHandler()
@@ -144,8 +144,8 @@ class MyRing():
 
   def get_srv_info(self,srv):
     serverinfo=["id","productname","num_cpus","cpu_model","mem_total","os","osrelease","SSDs"]
-    hdd=["rot_count","rot_size"]
-    sdd=["ssd_count","ssd_size"]
+    #hdd=["rot_count","rot_size"]
+    #sdd=["ssd_count","ssd_size"]
     disable_proxy()
     outdump="/tmp/"+srv+".out"
     grains=self.grains[srv]
@@ -172,28 +172,6 @@ class MyRing():
     self.add_csv(srv,'cpu',"\"{}\"".format(self.grains[srv]['cpu_model']))
     self.add_csv(srv,'enclosure',"\"{}\"".format(self.grains[srv]['productname']))
     hd=self.analyse_disks(mounted)
-    if 'ROLE_STORE' in self.grains[srv]['roles']:
-      logger.debug("Store server getting disk count")
-      self.pr_silent("Scality hdd found : {}".format(hd[0]),info=True) 
-      self.pr_silent("Scality ssd found : {}".format(hd[1]),info=True)
-      if 'rot_count' in self.grains[srv]:
-        self.add_csv(srv,'#data_disk',format(self.grains[srv]['rot_count']))
-        self.add_csv(srv,'data_disk_size',format(self.grains[srv]['rot_size']/self.grains[srv]['rot_count']/(1024 * 1024 * 1024)))
-      else:
-        logger.warning("rot_count not found in grains")
-        self.add_csv(srv,'#data_disk',format(hd[0]))
-      if 'ssd_count' in self.grains[srv]:
-        self.add_csv(srv,'#ssd',format(self.grains[srv]['ssd_count']))
-        self.add_csv(srv,'ssd_size',format(self.grains[srv]['ssd_size']/self.grains[srv]['ssd_count']/(1024 * 1024 * 1024)))
-      else:
-        logger.warning("ssd_count not found in grains")
-        self.add_csv(srv,'#ssd',format(hd[1]))
-      if not 'rings' in self.pillar[srv]['scality']:
-        logger.warning("not rings found for store node {}".format(srv))
-      else:
-        rings="\"{}\"".format(self.pillar[srv]['scality']['rings'])
-        self.pr_silent("Scality rings found : {}".format(rings),info=True)
-        self.add_csv(srv,'ring_membership',format(rings))
     for this in  grains['ip4_interfaces'].keys():
       if this == 'lo':
         continue
@@ -202,35 +180,73 @@ class MyRing():
           print 'DEBUG : interface without ip v4'+this 
       else:
         self.pr_silent("{} : {}".format(this,grains['ip4_interfaces'][this][0]),info=True) 
+    if 'roles' not in self.grains[srv]:
+      logger.warning("Server {} hasn\'t any roles grain".format(srv))
+      return(1)
+    if 'ROLE_STORE' in self.grains[srv]['roles']:
+      logger.debug("Store server getting disk count")
+      self.pr_silent("Scality hdd found : {}".format(hd[0]),info=True) 
+      self.pr_silent("Scality ssd found : {}".format(hd[1]),info=True)
+      if 'rot_count' in self.grains[srv]:
+        self.add_csv(srv,'#data_disk',format(self.grains[srv]['rot_count']))
+        if 'rot_size' in self.grains[srv]:
+          self.add_csv(srv,'data_disk_size',format(self.grains[srv]['rot_size']/self.grains[srv]['rot_count']/(1024 * 1024 * 1024)))
+        else:
+          logger.warning("Server {} has rot_count but no rot_size".format(srv))
+      else:
+        logger.warning("Server {} has no rot_count".format(srv))
+        self.add_csv(srv,'#data_disk',format(hd[0]))
+      if 'ssd_count' in self.grains[srv]:
+        self.add_csv(srv,'#ssd',format(self.grains[srv]['ssd_count']))
+        if 'ssd_size' in self.grains[srv]:
+          self.add_csv(srv,'ssd_size',format(self.grains[srv]['ssd_size']/self.grains[srv]['ssd_count']/(1024 * 1024 * 1024)))
+        else:
+          logger.warning("Server {} has ssd_count but no ssd_size".format(srv))
+      else:
+        logger.warning("Server {} has no ssd_count".format(srv))
+        self.add_csv(srv,'#ssd',format(hd[1]))
+      if not 'rings' in self.pillar[srv]['scality']:
+        logger.warning("not rings found for store node {}".format(srv))
+      else:
+        rings="\"{}\"".format(self.pillar[srv]['scality']['rings'])
+        self.pr_silent("Scality rings found : {}".format(rings),info=True)
+        self.add_csv(srv,'ring_membership',format(rings))
     roles=self.get_value(grains,'roles')
     csvroles=self.get_csv_role(roles)
     csvroles.sort()
     csvroles="\"{}\"".format(','.join(csvroles))
     self.add_csv(srv,'role',csvroles)
     # This is the default output
+    if not isinstance(roles, list): 
+      roles=roles.split()
     strroles=''.join(","+e for e in roles)[1:]
-    print "Server {:<10} has grains : {:<20}".format(srv,strroles)
+    print "Server {:<10} has roles : {:<20}".format(srv,strroles)
 
   def get_if_info(self,srv):
     pillar=self.pillar[srv]['scality'] 
-    localpillar={ 'scality' : ''}
+    localpillar={}
     if 'supervisor_ip' in pillar:
       self.pr_silent("supervisor_ip : {}".format(pillar['supervisor_ip']),info=True)
-      localpillar['  supervisor_ip']=pillar['supervisor_ip']
+      localpillar['supervisor_ip']=pillar['supervisor_ip']
     else:
       self.pr_silent("No supervisor ip defined")
     for i in ['data','mgmt']:
       if i+'_ip' in pillar:
         self.pr_silent("{}_ip : {}".format(i,pillar[i+'_ip']),info=True)
-        localpillar['  '+i+'_iface']=pillar[i+'_ip']
+        localpillar[i+'_iface']=pillar[i+'_ip']
         self.add_csv(srv,i+'_ip',pillar[i+'_ip'])
       elif i+'_iface' in pillar:
-        ipv4 = self.grains[srv]['ip4_interfaces']      
-        self.pr_silent("{}_ip : {} # from  (from data_iface)".format(i,pillar[i+'_iface']),info=True)
-        localpillar['  '+i+'_ip']=pillar[i+'_iface']
-        self.add_csv(srv,i,pillar[i+'_iface'])
+        iface=pillar[i+'_iface']
+        ipv4 = self.grains[srv]['ip4_interfaces'][iface][0]
+        self.pr_silent("{}_ip : {} # from  (from {})".format(i,ipv4,i+'_iface'),info=True)
+        localpillar[i+'_ip']=ipv4
+        self.add_csv(srv,i,ipv4)
       else:
-       self.pr_silent("Neither {}_ip or {}_iface found".format(i,i))
+       self.pr_silent("Server {} has neither {}_ip or {}_iface found".format(srv,i,i))
+    if 'mgmt_ip' not in localpillar.keys():
+      print localpillar
+      localpillar['mgmt_ip']=localpillar['data_ip']
+       
     if self.sls:
       self.create_sls(localpillar,srv)
 
@@ -241,10 +257,11 @@ class MyRing():
     except:
       logger.error("Can't generate pillar, opening {} with error {}".format(outfile,sys.exc_info()[0]))
       return(9)
-    logger.info("generating pillar sls file {}".format(outfile))
+    self.pr_silent("generating pillar sls file {}".format(outfile),info=True)
+    f.write("scality: \n")
     for i in dict.keys():
-      line="{}:{}".format(i,dict[i])
-      self.pr_silent("{}".format(line)) 
+      line="  {}:{}".format(i,dict[i])
+      self.pr_silent("{}".format(line),info=True) 
       f.write(str(line)+"\n")
     f.close()
 
