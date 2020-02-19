@@ -52,6 +52,7 @@ class MyRing():
   def __init__(self,args):
     self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'store' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' }
     self.csvbanner=['data_ip', 'data_iface', 'mgmt_ip', 'mgmt_iface', 's3_ip', 's3_iface', 'svsd_ip', 'svsd_iface', 'ring_membership', 'role', 'minion_id', 'enclosure', 'site', '#cpu', 'cpu', 'ram', '#nic', 'nic_size', '#os_disk', 'os_disk_size', '#data_disk', 'data_disk_size', '#raid_card', 'raid_cache', 'raid_card_type', '#ssd', 'ssd_size', '#ssd_for_s3', 'ssd_for_s3_size']
+    self.virtualhost = ['VMware Virtual Platform','OpenStack Nova']
     self.target = args.target
     if self.target == None:
       self.target = ['all']
@@ -67,6 +68,7 @@ class MyRing():
     
  
   def get_grains_pillars(self):
+    minionvers = {}
     if self.target[0] == 'all':
       logger.debug('Getting ALL grains and pillars')
       target='*'
@@ -78,6 +80,17 @@ class MyRing():
     self.pillar = local.cmd(target,'pillar.items')
     self.target = self.grains.keys()
     logger.debug('Final target list'.format(self.target))
+    for i in self.grains.keys():
+      if self.grains[i]['saltversion'] not in minionvers.keys():
+        minionvers[self.grains[i]['saltversion']]=[i]
+      else:
+        minionvers[self.grains[i]['saltversion']].append(i)
+    if len(minionvers) != 1:
+      tmp=""
+      for i in minionvers.keys():
+        tmp=tmp+str(i)+','
+      logger.warning("Different version of salt running {}".format(tmp.rstrip(',')))
+    return(0)
 
   def get_csv_role(self,roles):
     csvrole=[]
@@ -170,7 +183,10 @@ class MyRing():
     self.add_csv(srv,'minion_id',srv)
     self.add_csv(srv,'#cpu',self.grains[srv]['num_cpus'])
     self.add_csv(srv,'cpu',"\"{}\"".format(self.grains[srv]['cpu_model']))
-    self.add_csv(srv,'enclosure',"\"{}\"".format(self.grains[srv]['productname']))
+    enclosure=self.grains[srv]['productname']
+    if enclosure in self.virtualhost:
+      enclosure="VIRTUAL MACHINE"
+    self.add_csv(srv,'enclosure',"\"{}\"".format(enclosure))
     hd=self.analyse_disks(mounted)
     for this in  grains['ip4_interfaces'].keys():
       if this == 'lo':
@@ -230,23 +246,42 @@ class MyRing():
       localpillar['supervisor_ip']=pillar['supervisor_ip']
     else:
       self.pr_silent("No supervisor ip defined")
-    for i in ['data','mgmt']:
-      if i+'_ip' in pillar:
-        self.pr_silent("{}_ip : {}".format(i,pillar[i+'_ip']),info=True)
-        localpillar[i+'_iface']=pillar[i+'_ip']
-        self.add_csv(srv,i+'_ip',pillar[i+'_ip'])
-      elif i+'_iface' in pillar:
-        iface=pillar[i+'_iface']
-        ipv4 = self.grains[srv]['ip4_interfaces'][iface][0]
-        self.pr_silent("{}_ip : {} # from  (from {})".format(i,ipv4,i+'_iface'),info=True)
-        localpillar[i+'_ip']=ipv4
-        self.add_csv(srv,i,ipv4)
+
+    data_ip=""
+    if 'data_ip' in pillar:
+      self.pr_silent("data_ip : {}".format(pillar['data_ip']),info=True)
+      self.add_csv(srv,'data_ip',pillar['data_ip'])
+    elif 'data_iface' in pillar:
+      iface=pillar['data_iface']
+      if not iface in self.grains[srv]['ip4_interfaces']:
+        logger.error("data_iface {} is not present in grains {}".format(iface,self.grains[srv]['ip4_interfaces']))
+        for iface in self.grains[srv]['ip4_interfaces'].keys():
+          if not self.grains[srv]['ip4_interfaces'][iface] == []:
+            if self.grains[srv]['ip4_interfaces'][iface][0] != '127.0.0.1':
+              logger.warning("Server {} Using random local ip as no data ip/if grain found : chosen {}".format(srv,self.grains[srv]['ip4_interfaces'][iface][0]))
+              break
+        return(1)
       else:
-       self.pr_silent("Server {} has neither {}_ip or {}_iface found".format(srv,i,i))
-    if 'mgmt_ip' not in localpillar.keys():
-      print localpillar
-      localpillar['mgmt_ip']=localpillar['data_ip']
-       
+        data_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+        self.pr_silent("data_ip : {}".format(data_ip),info=True)
+        self.add_csv(srv,'data_ip',data_ip)
+    
+    if 'mgmt_ip' in pillar:
+      self.pr_silent("mgmt_ip : {}".format(pillar['mgmt_ip']),info=True)
+      self.add_csv(srv,'mgmt_ip',pillar['mgmt_ip'])
+    elif 'mgmt_iface' in pillar:
+      iface=pillar['mgmt_iface']
+      if not iface in self.grains[srv]['ip4_interfaces']:
+        logger.error("SERver {} mgmt_iface {} is not present in grains {}".format(srv,iface,self.grains[srv]['ip4_interfaces']))
+        if data_ip != "":
+          logger.debug("Using data ip for mgmt ip as neither mgmt_ip/mgmt_iface usable")
+          mgmt_ip=data_ip
+        else:
+          logger.error("No mgmt and data ip found")
+      else:
+        mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+        self.pr_silent("mgmt_ip : {}".format(mgmt_ip),info=True)
+        self.add_csv(srv,'mgmt_ip',mgmt_ip)
     if self.sls:
       self.create_sls(localpillar,srv)
 
