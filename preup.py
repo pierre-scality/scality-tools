@@ -65,7 +65,7 @@ class MyRing():
     self.silent =  args.quiet
     self.platform =  args.platform
     self.csv = {}
-    
+    self.es_ip = 'data_ip' 
  
   def get_grains_pillars(self):
     minionvers = {}
@@ -144,7 +144,7 @@ class MyRing():
       elif self.target not in self.grains.keys():
         logger.error("server {} is not in the list of minions.\n{}".format(target,self.grains.keys()))
         exit(0)
-    print self.target
+    #print self.target
     exit()
 
   def analyse_disks(self,l):
@@ -256,25 +256,28 @@ class MyRing():
     data_ip=""
     if 'data_ip' in pillar:
       self.pr_silent("data_ip : {}".format(pillar['data_ip']),info=True)
-      self.add_csv(srv,'data_ip',pillar['data_ip'])
+      localpillar['data_ip']=pillar['data_ip']
     elif 'data_iface' in pillar:
       iface=pillar['data_iface']
+      logger.debug("iface {} ".format(iface))
       if not iface in self.grains[srv]['ip4_interfaces']:
         logger.error("data_iface {} is not present in grains {}".format(iface,self.grains[srv]['ip4_interfaces']))
         for iface in self.grains[srv]['ip4_interfaces'].keys():
           if not self.grains[srv]['ip4_interfaces'][iface] == []:
             if self.grains[srv]['ip4_interfaces'][iface][0] != '127.0.0.1':
               logger.warning("Server {} Using random local ip as no data ip/if grain found : chosen {}".format(srv,self.grains[srv]['ip4_interfaces'][iface][0]))
+              localpillar['data_ip']=self.grains[srv]['ip4_interfaces'][iface][0]
               break
         return(1)
       else:
         data_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+        localpillar['data_ip'] = data_ip
         self.pr_silent("data_ip : {}".format(data_ip),info=True)
-        self.add_csv(srv,'data_ip',data_ip)
+        logger.debug("adding ip {} ".format(data_ip))
     
     if 'mgmt_ip' in pillar:
       self.pr_silent("mgmt_ip : {}".format(pillar['mgmt_ip']),info=True)
-      self.add_csv(srv,'mgmt_ip',pillar['mgmt_ip'])
+      localpillar['mgmt_ip']=pillar['mgmt_ip']
     elif 'mgmt_iface' in pillar:
       iface=pillar['mgmt_iface']
       if not iface in self.grains[srv]['ip4_interfaces']:
@@ -282,12 +285,13 @@ class MyRing():
         if data_ip != "":
           logger.debug("Using data ip for mgmt ip as neither mgmt_ip/mgmt_iface usable")
           mgmt_ip=data_ip
+          localpillar['mgmt_ip']=mgmt_ip
         else:
           logger.error("No mgmt and data ip found")
       else:
         mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
         self.pr_silent("mgmt_ip : {}".format(mgmt_ip),info=True)
-        self.add_csv(srv,'mgmt_ip',mgmt_ip)
+        localpillar['mgmt_ip']=mgmt_ip
     if self.sls:
       self.create_sls(localpillar,srv)
 
@@ -298,13 +302,33 @@ class MyRing():
     except:
       logger.error("Can't generate pillar, opening {} with error {}".format(outfile,sys.exc_info()[0]))
       return(9)
-    self.pr_silent("generating pillar sls file {}".format(outfile),info=True)
+    #self.pr_silent("generating pillar sls file {}".format(outfile),info=True)
+    logger.info("generating pillar sls file {}".format(outfile))
     f.write("scality: \n")
     for i in dict.keys():
-      line="  {}:{}".format(i,dict[i])
+      line="  {}: {}".format(i,dict[i])
       self.pr_silent("{}".format(line),info=True) 
       f.write(str(line)+"\n")
+    if self.es_ip in dict.keys():
+      line="{}:\n  net_ip: {}\n".format('elasticsearch',dict['data_ip'])
+      f.write(str(line)+"\n")
+    else:
+      logger.warning("Cannot create elasticsearch entry as data_ip is not know")
     f.close()
+
+  def create_top_sls(self):
+    outfile=self.slsdir+'top'+".sls"
+    try:
+      f=open(outfile, 'w') 
+    except:
+      logger.error("Can't generate pillar, opening {} with error {}".format(outfile,sys.exc_info()[0]))
+      return(9)
+    logger.info("generating top pillar sls file {}".format(outfile))
+    f.write("base:\n  '*':\n    - scality-common\n    - order: 1\n")
+    for i in self.grains.keys():
+      logger.debug("Adding {} to top file".format(i))
+      line="  '{}':\n    - {}\n    - order: 2".format(i,i)
+      f.write(str(line)+"\n")
 
   def add_csv(self,host,p,v):
     if not host in self.csv.keys():
@@ -353,7 +377,9 @@ class MyRing():
     if self.platform == True:
       self.print_csv() 
     if args.selector == True:
-      self.display_selector()    
+      self.display_selector()   
+    if self.sls == True: 
+      self.create_top_sls()
     exit(0)
 
 def main():
