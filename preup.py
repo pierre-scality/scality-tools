@@ -73,13 +73,13 @@ class MyRing():
       logger.debug('Getting ALL grains and pillars')
       target='*'
     else:
-      logger.debug('Getting grains and pillars for {}'.format(self.target[0]))
+      logger.debug('Getting grains and pillars for {0}'.format(self.target[0]))
       target=self.target[0]
     self.grains=local.cmd(target,'grains.items')
     #self.pillar = local.cmd(target,'pillar.get',['scality'])
     self.pillar = local.cmd(target,'pillar.items')
     self.target = self.grains.keys()
-    logger.debug('Final target list'.format(self.target))
+    logger.debug('Final target list {0}'.format(self.target))
     for i in self.grains.keys():
       if self.grains[i]['saltversion'] not in minionvers.keys():
         minionvers[self.grains[i]['saltversion']]=[i]
@@ -89,14 +89,14 @@ class MyRing():
       tmp=""
       for i in minionvers.keys():
         tmp=tmp+str(i)+','
-      logger.warning("Different version of salt running {} [Use salt-run manage.versions for details]".format(tmp.rstrip(',')))
+      logger.warning("Different version of salt running {0} [Use salt-run manage.versions for details]".format(tmp.rstrip(',')))
     return(0)
 
   def get_csv_role(self,roles):
     csvrole=[]
     for i in roles:
       if i not in self.definition:
-        logger.debug('role {} not in known roles'.format(i))
+        logger.debug('role {0} not in known roles'.format(i))
         continue
       else:
         csvrole.append(self.definition[i])
@@ -105,18 +105,18 @@ class MyRing():
 
   def display_selector(self):
     roles={}
-    logger.debug('Getting roles from {}'.format(self.grains.keys()))
+    logger.debug('Getting roles from {0}'.format(self.grains.keys()))
     logger.info('Selector : ')
     for srv in self.grains.keys():
       if not 'roles' in self.grains[srv]:
-        logger.warning("No roles for server {}".format(srv))
+        logger.warning("No roles for server {0}".format(srv))
         continue
       this = self.grains[srv]['roles']
       if isinstance(this, str):
         this = [this] 
       for role in this:
         if role not in self.definition:
-          logger.debug('role {} not in known'.format(role))
+          logger.debug('role {0} not in known'.format(role))
           continue
         else:
           role=self.definition[role]
@@ -125,16 +125,16 @@ class MyRing():
         else:
           roles[role]=roles[role]+","+srv 
     for i in roles:
-      print "{}: {}".format(i,roles[i],info=True)
+      print "{0}: {1}".format(i,roles[i],info=True)
     return(roles)
 
   def get_value(self,l,v,displ=False):
     if v in l.keys():
       if displ == True:
-        self.pr_silent("{} : {}".format(v,l[v]))
+        self.pr_silent("{0} : {1}".format(v,l[v]))
       return(l[v])
     else:
-      logger.debug("Value {} not found".format(v))
+      logger.debug("Value {0} not found".format(v))
       return(None)
 
   def set_target(self):
@@ -142,7 +142,7 @@ class MyRing():
       if self.target == all:
         self.target == self.grains.keys()
       elif self.target not in self.grains.keys():
-        logger.error("server {} is not in the list of minions.\n{}".format(target,self.grains.keys()))
+        logger.error("server {0} is not in the list of minions: \n{1}".format(target,self.grains.keys()))
         exit(0)
     #print self.target
     exit()
@@ -158,7 +158,7 @@ class MyRing():
         if  this.split('/')[2][0:3] == 'ssd':
           ssd+=1
         else:
-          logger.debug("Unexpected Value found {}".format(this)) 
+          logger.debug("Unexpected Value found {0}".format(this)) 
     return(hdd,ssd) 
 
   def get_srv_info(self,srv):
@@ -172,7 +172,7 @@ class MyRing():
     fd=open(outdump,'w')
     fd.write(str(grains))
     fd.close()
-    logger.debug("grains dump for {} file : {}".format(srv,outdump))
+    logger.debug("grains dump for {0} file : {1}".format(srv,outdump))
     if grains['os_family'] != "RedHat":
       logger.warning('WARNING : Support only RH family')
     dcount=0
@@ -185,14 +185,14 @@ class MyRing():
         continue
       dcount+=1
       dlist.append(this)
-    self.pr_silent("Raw disks list : {}\nRaw disks count : {} ".format(dlist,dcount),info=True)
+    self.pr_silent("Raw disks list : {0}\nRaw disks count : {1} ".format(dlist,dcount),info=True)
     self.add_csv(srv,'minion_id',srv)
     self.add_csv(srv,'#cpu',self.grains[srv]['num_cpus'])
-    self.add_csv(srv,'cpu',"\"{}\"".format(self.grains[srv]['cpu_model']))
+    self.add_csv(srv,'cpu',"\"{0}\"".format(self.grains[srv]['cpu_model']))
     enclosure=self.grains[srv]['productname']
     if enclosure in self.virtualhost:
       enclosure="VIRTUAL MACHINE"
-    self.add_csv(srv,'enclosure',"\"{}\"".format(enclosure))
+    self.add_csv(srv,'enclosure',"\"{0}\"".format(enclosure))
     hd=self.analyse_disks(mounted)
     for this in  grains['ip4_interfaces'].keys():
       if this == 'lo':
@@ -201,42 +201,42 @@ class MyRing():
         if args.debug:
           print 'DEBUG : interface without ip v4'+this 
       else:
-        self.pr_silent("{} : {}".format(this,grains['ip4_interfaces'][this][0]),info=True) 
+        self.pr_silent("{0} : {1}".format(this,grains['ip4_interfaces'][this][0]),info=True) 
     if 'roles' not in self.grains[srv]:
-      logger.warning("Server {} hasn\'t any roles grain".format(srv))
+      logger.warning("Server {0} hasn\'t any roles grain".format(srv))
       return(1)
     if 'ROLE_STORE' in self.grains[srv]['roles']:
       logger.debug("Store server getting disk count")
-      self.pr_silent("Scality hdd found : {}".format(hd[0]),info=True) 
-      self.pr_silent("Scality ssd found : {}".format(hd[1]),info=True)
+      self.pr_silent("Scality hdd found : {0}".format(hd[0]),info=True) 
+      self.pr_silent("Scality ssd found : {0}".format(hd[1]),info=True)
       if 'rot_count' in self.grains[srv]:
         self.add_csv(srv,'#data_disk',format(self.grains[srv]['rot_count']))
         if 'rot_size' in self.grains[srv]:
           self.add_csv(srv,'data_disk_size',format(self.grains[srv]['rot_size']/self.grains[srv]['rot_count']/(1024 * 1024 * 1024)))
         else:
-          logger.warning("Server {} has rot_count but no rot_size".format(srv))
+          logger.warning("Server {0} has rot_count but no rot_size".format(srv))
       else:
-        logger.warning("Server {} has no rot_count".format(srv))
+        logger.warning("Server {0} has no rot_count".format(srv))
         self.add_csv(srv,'#data_disk',format(hd[0]))
       if 'ssd_count' in self.grains[srv]:
         self.add_csv(srv,'#ssd',format(self.grains[srv]['ssd_count']))
         if 'ssd_size' in self.grains[srv]:
           self.add_csv(srv,'ssd_size',format(self.grains[srv]['ssd_size']/self.grains[srv]['ssd_count']/(1024 * 1024 * 1024)))
         else:
-          logger.warning("Server {} has ssd_count but no ssd_size".format(srv))
+          logger.warning("Server {0} has ssd_count but no ssd_size".format(srv))
       else:
-        logger.warning("Server {} has no ssd_count".format(srv))
+        logger.warning("Server {0} has no ssd_count".format(srv))
         self.add_csv(srv,'#ssd',format(hd[1]))
       if not 'rings' in self.pillar[srv]['scality']:
-        logger.warning("not rings found for store node {}".format(srv))
+        logger.warning("not rings found for store node {0}".format(srv))
       else:
-        rings="\"{}\"".format(self.pillar[srv]['scality']['rings'])
-        self.pr_silent("Scality rings found : {}".format(rings),info=True)
+        rings="\"{0}\"".format(self.pillar[srv]['scality']['rings'])
+        self.pr_silent("Scality rings found : {0}".format(rings),info=True)
         self.add_csv(srv,'ring_membership',format(rings))
     roles=self.get_value(grains,'roles')
     csvroles=self.get_csv_role(roles)
     csvroles.sort()
-    csvroles="\"{}\"".format(','.join(csvroles))
+    csvroles="\"{0}\"".format(','.join(csvroles))
     self.add_csv(srv,'role',csvroles)
     # This is the default output
     if not isinstance(roles, list): 
@@ -248,40 +248,40 @@ class MyRing():
     pillar=self.pillar[srv]['scality'] 
     localpillar={}
     if 'supervisor_ip' in pillar:
-      self.pr_silent("supervisor_ip : {}".format(pillar['supervisor_ip']),info=True)
+      self.pr_silent("supervisor_ip : {0}".format(pillar['supervisor_ip']),info=True)
       localpillar['supervisor_ip']=pillar['supervisor_ip']
     else:
       self.pr_silent("No supervisor ip defined")
 
     data_ip=""
     if 'data_ip' in pillar:
-      self.pr_silent("data_ip : {}".format(pillar['data_ip']),info=True)
+      self.pr_silent("data_ip : {0}".format(pillar['data_ip']),info=True)
       localpillar['data_ip']=pillar['data_ip']
     elif 'data_iface' in pillar:
       iface=pillar['data_iface']
-      logger.debug("iface {} ".format(iface))
+      logger.debug("iface {0} ".format(iface))
       if not iface in self.grains[srv]['ip4_interfaces']:
-        logger.error("data_iface {} is not present in grains {}".format(iface,self.grains[srv]['ip4_interfaces']))
+        logger.error("data_iface {0} is not present in grains {0}".format(iface,self.grains[srv]['ip4_interfaces']))
         for iface in self.grains[srv]['ip4_interfaces'].keys():
           if not self.grains[srv]['ip4_interfaces'][iface] == []:
             if self.grains[srv]['ip4_interfaces'][iface][0] != '127.0.0.1':
-              logger.warning("Server {} Using random local ip as no data ip/if grain found : chosen {}".format(srv,self.grains[srv]['ip4_interfaces'][iface][0]))
+              logger.warning("Server {0} Using random local ip as no data ip/if grain found : chosen {0}".format(srv,self.grains[srv]['ip4_interfaces'][iface][0]))
               localpillar['data_ip']=self.grains[srv]['ip4_interfaces'][iface][0]
               break
         return(1)
       else:
         data_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
         localpillar['data_ip'] = data_ip
-        self.pr_silent("data_ip : {}".format(data_ip),info=True)
-        logger.debug("adding ip {} ".format(data_ip))
+        self.pr_silent("data_ip : {0}".format(data_ip),info=True)
+        logger.debug("adding ip {0} ".format(data_ip))
     
     if 'mgmt_ip' in pillar:
-      self.pr_silent("mgmt_ip : {}".format(pillar['mgmt_ip']),info=True)
+      self.pr_silent("mgmt_ip : {0}".format(pillar['mgmt_ip']),info=True)
       localpillar['mgmt_ip']=pillar['mgmt_ip']
     elif 'mgmt_iface' in pillar:
       iface=pillar['mgmt_iface']
       if not iface in self.grains[srv]['ip4_interfaces']:
-        logger.error("SERver {} mgmt_iface {} is not present in grains {}".format(srv,iface,self.grains[srv]['ip4_interfaces']))
+        logger.error("Server {0} mgmt_iface {1} is not present in grains {2}".format(srv,iface,self.grains[srv]['ip4_interfaces']))
         if data_ip != "":
           logger.debug("Using data ip for mgmt ip as neither mgmt_ip/mgmt_iface usable")
           mgmt_ip=data_ip
@@ -290,7 +290,7 @@ class MyRing():
           logger.error("No mgmt and data ip found")
       else:
         mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
-        self.pr_silent("mgmt_ip : {}".format(mgmt_ip),info=True)
+        self.pr_silent("mgmt_ip : {1}".format(mgmt_ip),info=True)
         localpillar['mgmt_ip']=mgmt_ip
     if self.sls:
       self.create_sls(localpillar,srv)
@@ -300,24 +300,24 @@ class MyRing():
     try:
       f=open(outfile, 'w') 
     except:
-      logger.error("Can't generate pillar, opening {} with error {}".format(outfile,sys.exc_info()[0]))
+      logger.error("Can't generate pillar, opening {0} with error {1}".format(outfile,sys.exc_info()[0]))
       return(9)
-    #self.pr_silent("generating pillar sls file {}".format(outfile),info=True)
-    logger.info("generating pillar sls file {}".format(outfile))
+    #self.pr_silent("generating pillar sls file {0}".format(outfile),info=True)
+    logger.info("generating pillar sls file {0}".format(outfile))
     f.write("scality: \n")
     for i in dict.keys():
-      line="  {}: {}".format(i,dict[i])
-      self.pr_silent("{}".format(line),info=True) 
+      line="  {0}: {1}".format(i,dict[i])
+      self.pr_silent("{0}".format(line),info=True) 
       f.write(str(line)+"\n")
     if 'ROLE_ELASTIC' in self.grains[srv]['roles']:
       logger.debug("Creating ES entry in pillar")
       if self.es_ip in dict.keys():
-        line="{}:\n  net_ip: {}\n".format('elasticsearch',dict['data_ip'])
+        line="{0}:\n  net_ip: {1}\n".format('elasticsearch',dict['data_ip'])
         f.write(str(line)+"\n")
       else:
         logger.warning("Cannot create elasticsearch entry as data_ip is not know")
     else:
-      logger.debug("srv {} not role ROLE_ELASTIC".format(srv))
+      logger.debug("srv {0} not role ROLE_ELASTIC".format(srv))
     f.close()
 
   def create_top_sls(self):
@@ -325,13 +325,13 @@ class MyRing():
     try:
       f=open(outfile, 'w') 
     except:
-      logger.error("Can't generate pillar, opening {} with error {}".format(outfile,sys.exc_info()[0]))
+      logger.error("Can't generate pillar, opening {0} with error {1}".format(outfile,sys.exc_info()[0]))
       return(9)
-    logger.info("generating top pillar sls file {}".format(outfile))
+    logger.info("generating top pillar sls file {0}".format(outfile))
     f.write("base:\n  '*':\n    - scality-common\n    - order: 1\n")
     for i in self.grains.keys():
-      logger.debug("Adding {} to top file".format(i))
-      line="  '{}':\n    - {}\n    - order: 2".format(i,i)
+      logger.debug("Adding {0} to top file".format(i))
+      line="  '{0}':\n    - {1}\n    - order: 2".format(i,i)
       f.write(str(line)+"\n")
 
   def add_csv(self,host,p,v):
@@ -347,9 +347,9 @@ class MyRing():
     try:
       f=open(outfile, 'w') 
     except:
-      logger.error("Can't generate plateform file, opening {} with error {}".format(outfile,sys.exc_info()[0]))
+      logger.error("Can't generate plateform file, opening {0} with error {1}".format(outfile,sys.exc_info()[0]))
       return(9)
-    logger.info("generating plateform file {}".format(outfile))
+    logger.info("generating plateform file {0}".format(outfile))
     for i in self.csvbanner:
       header=header+str(i)+","
     header.strip(',')
@@ -368,14 +368,13 @@ class MyRing():
     if self.silent == False: 
       if info == False:
         print msg
-      #print "::: {} {}".format(info,self.info)
       if info == True and self.info == True:
         print msg
 
   def mainloop(self):
-    logger.debug("Main loop with args {}".format(args))
+    logger.debug("Main loop with args {0}".format(args))
     for i in self.target:
-      logger.debug("Server : {}".format(i))
+      logger.debug("Server : {0}".format(i))
       self.get_srv_info(i)
       self.get_if_info(i)
     if self.platform == True:
@@ -389,7 +388,7 @@ class MyRing():
 def main():
   l=[]
   R=MyRing(args)
-  logger.debug("Checking target {}".format(args.target))
+  logger.debug("Checking target {0}".format(args.target))
   if args.target == None:
     if args.sls == False and args.selector==None and args.platform == False:
       logger.info("Did you use any argument ?")
