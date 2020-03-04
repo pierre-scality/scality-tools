@@ -243,7 +243,7 @@ class MyRing():
     if not isinstance(roles, list): 
       roles=roles.split()
     strroles=''.join(","+e for e in roles)[1:]
-    print "Server {:<10} has roles : {:<20}".format(srv,strroles)
+    print "Server {0:<10} has roles : {1:<20}".format(srv,strroles)
 
   def get_if_info(self,srv):
     pillar=self.pillar[srv]['scality'] 
