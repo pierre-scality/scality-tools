@@ -291,7 +291,7 @@ class MyRing():
           logger.error("No mgmt and data ip found")
       else:
         mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
-        self.pr_silent("mgmt_ip : {1}".format(mgmt_ip),info=True)
+        self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
         localpillar['mgmt_ip']=mgmt_ip
     if self.sls:
       self.create_sls(localpillar,srv)
@@ -332,7 +332,7 @@ class MyRing():
     f.write("base:\n  '*':\n    - scality-common\n    - order: 1\n")
     for i in self.grains.keys():
       logger.debug("Adding {0} to top file".format(i))
-      line="  '{0}':\n    - {1}\n    - order: 2".format(i,i)
+      line="  '{0}':\n    - match: compound\n    - {1}\n    - order: 2".format(i,i)
       f.write(str(line)+"\n")
 
   def add_csv(self,host,p,v):
