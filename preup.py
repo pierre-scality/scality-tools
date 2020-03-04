@@ -309,11 +309,15 @@ class MyRing():
       line="  {}: {}".format(i,dict[i])
       self.pr_silent("{}".format(line),info=True) 
       f.write(str(line)+"\n")
-    if self.es_ip in dict.keys():
-      line="{}:\n  net_ip: {}\n".format('elasticsearch',dict['data_ip'])
-      f.write(str(line)+"\n")
+    if 'ROLE_ELASTIC' in self.grains[srv]['roles']:
+      logger.debug("Creating ES entry in pillar")
+      if self.es_ip in dict.keys():
+        line="{}:\n  net_ip: {}\n".format('elasticsearch',dict['data_ip'])
+        f.write(str(line)+"\n")
+      else:
+        logger.warning("Cannot create elasticsearch entry as data_ip is not know")
     else:
-      logger.warning("Cannot create elasticsearch entry as data_ip is not know")
+      logger.debug("srv {} not role ROLE_ELASTIC".format(srv))
     f.close()
 
   def create_top_sls(self):
