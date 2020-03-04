@@ -293,6 +293,10 @@ class MyRing():
         mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
         self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
         localpillar['mgmt_ip']=mgmt_ip
+    if 'zone' in pillar:
+      localpillar['zone'] = pillar['zone']
+    else:
+      localpillar['zone'] = 'site1'
     if self.sls:
       self.create_sls(localpillar,srv)
 
