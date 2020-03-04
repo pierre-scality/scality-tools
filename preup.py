@@ -8,11 +8,12 @@ import logging
 
 parser = argparse.ArgumentParser(description="Help to understand ring setting and create installation files  including pillar/csv")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
+parser.add_argument('-E', '--forcees', dest='forcees', nargs=1 , help='If no role ELASTIC is found will duplicate this selector role to create elastic selector')
 parser.add_argument('-I', '--info', dest='info', action="store_true", default=False ,help='print verbose server information')
-parser.add_argument('-S', '--selector', dest='selector', action="store_true", default=False ,help='Build selector list for scality common pillar')
 parser.add_argument('-p', '--platform', dest='platform', action="store_true", default=False ,help='Generate plateform description file for hosts')
 parser.add_argument('-q', '--quiet', dest='quiet', action="store_true", default=False ,help='Do not display general information on each host')
 parser.add_argument('-s', '--sls', dest='sls', action="store_true", default=False ,help='Generate pillar.sls for hosts (in /var/tmp)')
+parser.add_argument('-S', '--selector', dest='selector', action="store_true", default=False ,help='Build selector list for scality common pillar')
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target hosts, use all to loop on all minions')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 args, ukn = parser.parse_known_args()
@@ -50,7 +51,7 @@ def disable_proxy():
 
 class MyRing():
   def __init__(self,args):
-    self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'store' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' }
+    self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'storage' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' }
     self.csvbanner=['data_ip', 'data_iface', 'mgmt_ip', 'mgmt_iface', 's3_ip', 's3_iface', 'svsd_ip', 'svsd_iface', 'ring_membership', 'role', 'minion_id', 'enclosure', 'site', '#cpu', 'cpu', 'ram', '#nic', 'nic_size', '#os_disk', 'os_disk_size', '#data_disk', 'data_disk_size', '#raid_card', 'raid_cache', 'raid_card_type', '#ssd', 'ssd_size', '#ssd_for_s3', 'ssd_for_s3_size']
     self.virtualhost = ['VMware Virtual Platform','OpenStack Nova']
     self.target = args.target
@@ -66,6 +67,7 @@ class MyRing():
     self.platform =  args.platform
     self.csv = {}
     self.es_ip = 'data_ip' 
+    self.forcees = args.forcees
  
   def get_grains_pillars(self):
     minionvers = {}
@@ -124,8 +126,16 @@ class MyRing():
           roles[role]='L@'+srv
         else:
           roles[role]=roles[role]+","+srv 
+    print "  selector:"
     for i in roles:
-      print "{0}: {1}".format(i,roles[i],info=True)
+      print "    {0}: {1}".format(i,roles[i],info=True)
+    if not 'elastic' in roles.keys():
+      logger.debug("elastic selector not found trying to force {0} {1}".format(self.forcees,roles.keys()))
+      if self.forcees != None:
+        if self.forcees[0] in roles.keys():
+          print "    {0}: {1}".format('elastic',roles[self.forcees[0]],info=True)
+      else:
+        logger.warning("can not create selector for elastic role")    
     return(roles)
 
   def get_value(self,l,v,displ=False):
