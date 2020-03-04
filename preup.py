@@ -178,14 +178,15 @@ class MyRing():
     dcount=0
     dlist=[]
     disks=self.get_value(grains,'disks')
-    for this in disks:
-      if this[0:3] == 'ram':
-        continue
-      if this[0:4] == 'loop':
-        continue
-      dcount+=1
-      dlist.append(this)
-    self.pr_silent("Raw disks list : {0}\nRaw disks count : {1} ".format(dlist,dcount),info=True)
+    if disks != None:
+      for this in disks:
+        if this[0:3] == 'ram':
+          continue
+        if this[0:4] == 'loop':
+          continue
+        dcount+=1
+        dlist.append(this)
+      self.pr_silent("Raw disks list : {0}\nRaw disks count : {1} ".format(dlist,dcount),info=True)
     self.add_csv(srv,'minion_id',srv)
     self.add_csv(srv,'#cpu',self.grains[srv]['num_cpus'])
     self.add_csv(srv,'cpu',"\"{0}\"".format(self.grains[srv]['cpu_model']))
