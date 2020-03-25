@@ -8,11 +8,12 @@ import logging
 
 parser = argparse.ArgumentParser(description="Help to understand ring setting and create installation files  including pillar/csv")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
-parser.add_argument('-E', '--forcees', dest='forcees', nargs=1 , help='If no role ELASTIC is found will duplicate this selector role to create elastic selector')
+parser.add_argument('-D', '--dir', dest='dir', nargs=1, default=["/var/tmp"], help='Specify ouput directory for created files, default /var/tmp/')
+parser.add_argument('-E', '--forcees', dest='forcees', nargs=1 , help='If no role ELASTIC is found will duplicate this selector to create elastic selector')
 parser.add_argument('-I', '--info', dest='info', action="store_true", default=False ,help='print verbose server information')
 parser.add_argument('-p', '--platform', dest='platform', action="store_true", default=False ,help='Generate plateform description file for hosts')
 parser.add_argument('-q', '--quiet', dest='quiet', action="store_true", default=False ,help='Do not display general information on each host')
-parser.add_argument('-s', '--sls', dest='sls', action="store_true", default=False ,help='Generate pillar.sls for hosts (in /var/tmp)')
+parser.add_argument('-s', '--sls', dest='sls', action="store_true", default=False ,help='Generate pillar.sls for hosts (in /var/tmp, see -D)')
 parser.add_argument('-S', '--selector', dest='selector', action="store_true", default=False ,help='Build selector list for scality common pillar')
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target hosts, use all to loop on all minions')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
@@ -62,7 +63,7 @@ class MyRing():
     self.isnode = False
     self.sls = args.sls
     self.info = args.info
-    self.slsdir = "/var/tmp/"
+    self.outdir = args.dir[0]+"/"
     self.silent =  args.quiet
     self.platform =  args.platform
     self.csv = {}
@@ -130,10 +131,12 @@ class MyRing():
     for i in roles:
       print "    {0}: {1}".format(i,roles[i],info=True)
     if not 'elastic' in roles.keys():
-      logger.debug("elastic selector not found trying to force {0} {1}".format(self.forcees,roles.keys()))
       if self.forcees != None:
+        logger.debug("elastic selector not found trying to force {0} {1}".format(self.forcees,roles.keys()))
         if self.forcees[0] in roles.keys():
           print "    {0}: {1}".format('elastic',roles[self.forcees[0]],info=True)
+        else:
+          logger.error("Can not set elastic role, selector {0} not found".format(self.forcees[0])) 
       else:
         logger.warning("can not create selector for elastic role")    
     return(roles)
@@ -176,10 +179,14 @@ class MyRing():
     #hdd=["rot_count","rot_size"]
     #sdd=["ssd_count","ssd_size"]
     disable_proxy()
-    outdump="/tmp/"+srv+".out"
+    outdump="/var/tmp/"+srv+".out"
     grains=self.grains[srv]
     mounted=local.cmd(srv,'disk.usage')[srv]
-    fd=open(outdump,'w')
+    try:
+      fd=open(outdump,'w')
+    except:
+      logger.error("Can't open to write pillars {0} with error {1}".format(outdump,sys.exc_info()[0]))
+      exit(9)
     fd.write(str(grains))
     fd.close()
     logger.debug("grains dump for {0} file : {1}".format(srv,outdump))
@@ -253,7 +260,7 @@ class MyRing():
     if not isinstance(roles, list): 
       roles=roles.split()
     strroles=''.join(","+e for e in roles)[1:]
-    print "Server {0:<10} has roles : {1:<20}".format(srv,strroles)
+    logger.info("Server {0:<10} has roles : {1:<20}".format(srv,strroles))
 
   def get_if_info(self,srv):
     pillar=self.pillar[srv]['scality'] 
@@ -285,7 +292,9 @@ class MyRing():
         localpillar['data_ip'] = data_ip
         self.pr_silent("data_ip : {0}".format(data_ip),info=True)
         logger.debug("adding ip {0} ".format(data_ip))
-    
+  
+    ## ugly code to manage mgmt_iface case need to rethink the algo 
+    logger.debug("Checking mgmt_ip") 
     if 'mgmt_ip' in pillar:
       self.pr_silent("mgmt_ip : {0}".format(pillar['mgmt_ip']),info=True)
       localpillar['mgmt_ip']=pillar['mgmt_ip']
@@ -303,6 +312,10 @@ class MyRing():
         mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
         self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
         localpillar['mgmt_ip']=mgmt_ip
+    else:
+      mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+      self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
+      localpillar['mgmt_ip']=mgmt_ip
     if 'zone' in pillar:
       localpillar['zone'] = pillar['zone']
     else:
@@ -311,7 +324,7 @@ class MyRing():
       self.create_sls(localpillar,srv)
 
   def create_sls(self,dict,srv):
-    outfile=self.slsdir+srv+".sls"
+    outfile=self.outdir+srv+".sls"
     try:
       f=open(outfile, 'w') 
     except:
@@ -336,7 +349,7 @@ class MyRing():
     f.close()
 
   def create_top_sls(self):
-    outfile=self.slsdir+'top'+".sls"
+    outfile=self.outdir+'top'+".sls"
     try:
       f=open(outfile, 'w') 
     except:
@@ -357,7 +370,7 @@ class MyRing():
     self.csv[host].update({p:v})
 
   def print_csv(self):
-    outfile=self.slsdir+"plateform.csv"
+    outfile=self.outdir+"plateform.csv"
     header=""
     try:
       f=open(outfile, 'w') 
