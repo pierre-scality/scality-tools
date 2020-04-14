@@ -9,7 +9,8 @@ import logging
 parser = argparse.ArgumentParser(description="Help to understand ring setting and create installation files  including pillar/csv")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 parser.add_argument('-D', '--dir', dest='dir', nargs=1, default=["/var/tmp"], help='Specify ouput directory for created files, default /var/tmp/')
-parser.add_argument('-E', '--forcees', dest='forcees', nargs=1 , help='If no role ELASTIC is found will duplicate this selector to create elastic selector')
+parser.add_argument('-e', '--forcees', dest='forcees', nargs=1, help='If no role ELASTIC is found will duplicate this selector to create elastic selector')
+parser.add_argument('-E', '--esip', dest='es_ip', nargs=1, choices=['data_ip','mgmt_ip'], default=["data_ip"], help='ES ip to use it can be data_ip or mgmt_ip, default data_ip (use with -e)')
 parser.add_argument('-I', '--info', dest='info', action="store_true", default=False ,help='print verbose server information')
 parser.add_argument('-p', '--platform', dest='platform', action="store_true", default=False ,help='Generate plateform description file for hosts')
 parser.add_argument('-q', '--quiet', dest='quiet', action="store_true", default=False ,help='Do not display general information on each host')
@@ -30,9 +31,10 @@ logger = logging.getLogger(__name__)
 if args.debug==True:
   logger.setLevel(logging.DEBUG)
   logger.debug('Set debug mode')
+  logger.debug(args)
 
 if ukn != []:
-  logger.error("Some params are not correct {}".format(ukn))
+  logger.error("Some params are not correct {0}".format(ukn))
   exit(9)
 
 import salt.client
@@ -67,7 +69,7 @@ class MyRing():
     self.silent =  args.quiet
     self.platform =  args.platform
     self.csv = {}
-    self.es_ip = 'data_ip' 
+    self.es_ip = args.es_ip[0]
     self.forcees = args.forcees
  
   def get_grains_pillars(self):
@@ -78,6 +80,7 @@ class MyRing():
     else:
       logger.debug('Getting grains and pillars for {0}'.format(self.target[0]))
       target=self.target[0]
+    logger.info('Getting grains and pillars for all minions')
     self.grains=local.cmd(target,'grains.items')
     #self.pillar = local.cmd(target,'pillar.get',['scality'])
     self.pillar = local.cmd(target,'pillar.items')
@@ -110,7 +113,7 @@ class MyRing():
     roles={}
     logger.debug('Getting roles from {0}'.format(self.grains.keys()))
     logger.info('Selector : ')
-    for srv in self.grains.keys():
+    for srv in sorted(self.grains.keys()):
       if not 'roles' in self.grains[srv]:
         logger.warning("No roles for server {0}".format(srv))
         continue
@@ -321,6 +324,13 @@ class MyRing():
     else:
       localpillar['zone'] = 'site1'
     if self.sls:
+      if self.forcees != None:
+        logger.debug("Try to force ES if proper role")
+        for role in self.definition:
+          if role in self.grains[srv]['roles']:
+            if self.definition[role] == self.forcees[0]:
+              logger.debug("{0} has role {1} ({2}) and match {3},using elasticsearch ip: {4}".format(srv,role,self.definition[role],self.forcees[0],self.es_ip))
+              localpillar['elasticsearch']=localpillar[self.es_ip]
       self.create_sls(localpillar,srv)
 
   def create_sls(self,dict,srv):
@@ -332,6 +342,10 @@ class MyRing():
       return(9)
     #self.pr_silent("generating pillar sls file {0}".format(outfile),info=True)
     logger.info("generating pillar sls file {0}".format(outfile))
+    if 'elasticsearch' in dict.keys():
+      f.write("elasticsearch: \n")
+      f.write("  net_ip: {0}\n".format(dict['elasticsearch']))
+      dict.pop('elasticsearch')
     f.write("scality: \n")
     for i in dict.keys():
       line="  {0}: {1}".format(i,dict[i])
@@ -357,7 +371,7 @@ class MyRing():
       return(9)
     logger.info("generating top pillar sls file {0}".format(outfile))
     f.write("base:\n  '*':\n    - scality-common\n    - order: 1\n")
-    for i in self.grains.keys():
+    for i in sorted(self.grains.keys()):
       logger.debug("Adding {0} to top file".format(i))
       line="  '{0}':\n    - match: compound\n    - {1}\n    - order: 2".format(i,i)
       f.write(str(line)+"\n")
