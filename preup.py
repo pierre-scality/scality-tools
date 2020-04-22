@@ -66,6 +66,11 @@ class MyRing():
     self.sls = args.sls
     self.info = args.info
     self.outdir = args.dir[0]+"/"
+    if os.access(self.outdir, os.W_OK) and os.path.isdir(self.outdir):        
+        self.outdir=os.path.abspath(self.outdir)+"/" 
+    else: 
+        logger.error('Can not write on output dir : {0}'.format(self.outdir))
+        exit(9)
     self.silent =  args.quiet
     self.platform =  args.platform
     self.csv = {}
@@ -110,6 +115,12 @@ class MyRing():
 
 
   def display_selector(self):
+    outfile=self.outdir+"selector.sls"
+    try:
+      f=open(outfile, 'w')
+    except:
+      logger.error("Can't write selector file, opening {0} with error {1}".format(outfile,sys.exc_info()[0]))
+      return(9)
     roles={}
     logger.debug('Getting roles from {0}'.format(self.grains.keys()))
     logger.info('Selector : ')
@@ -131,17 +142,22 @@ class MyRing():
         else:
           roles[role]=roles[role]+","+srv 
     print "  selector:"
+    f.write("  selector: \n")
     for i in roles:
       print "    {0}: {1}".format(i,roles[i],info=True)
+      f.write("    {0}: {1}\n".format(i,roles[i]))
     if not 'elastic' in roles.keys():
       if self.forcees != None:
         logger.debug("elastic selector not found trying to force {0} {1}".format(self.forcees,roles.keys()))
         if self.forcees[0] in roles.keys():
           print "    {0}: {1}".format('elastic',roles[self.forcees[0]],info=True)
+          f.write("    {0}: {1}\n".format('elastic',roles[self.forcees[0]]))
         else:
           logger.error("Can not set elastic role, selector {0} not found".format(self.forcees[0])) 
       else:
         logger.warning("can not create selector for elastic role")    
+    logger.info("Selector file created on {0}".format(outfile))
+    f.close()
     return(roles)
 
   def get_value(self,l,v,displ=False):
@@ -291,7 +307,10 @@ class MyRing():
               break
         return(1)
       else:
-        data_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+        try:
+          data_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+        except:
+          logger.error("Can not get data_ip with {} for server {}".format(iface,srv))
         localpillar['data_ip'] = data_ip
         self.pr_silent("data_ip : {0}".format(data_ip),info=True)
         logger.debug("adding ip {0} ".format(data_ip))
@@ -312,7 +331,10 @@ class MyRing():
         else:
           logger.error("No mgmt and data ip found")
       else:
-        mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+        try:
+          mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+        except:
+          logger.error("Can not get mgmt_ip with {} for server {}".format(iface,srv))
         self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
         localpillar['mgmt_ip']=mgmt_ip
     else:
