@@ -5,19 +5,32 @@ import sys
 from datetime import datetime
 import argparse
 import logging 
+import textwrap
 
-parser = argparse.ArgumentParser(description="Help to understand ring setting and create installation files  including pillar/csv")
+epilog = '''
+Typical usage to have butter, cake and honey: 
+# preup.py -pSs -e storage -E data_ip -d /root/
+
+You'll get plateform file, selector values et all sls created in /root/
+-e means you dont have role elastic already and then you use the selector storage server to set ES role
+-E means you want to use the data_ip of those servers for ES ip
+
+WARNING : the script will overwrite existing files.
+'''
+
+
+parser = argparse.ArgumentParser(description="Help to understand ring setting and create installation files  including pillar/csv",formatter_class=argparse.RawDescriptionHelpFormatter,epilog=textwrap.dedent(epilog))
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 parser.add_argument('-D', '--dir', dest='dir', nargs=1, default=["/var/tmp"], help='Specify ouput directory for created files, default /var/tmp/')
 parser.add_argument('-e', '--forcees', dest='forcees', nargs=1, help='If no role ELASTIC is found will duplicate this selector to create elastic selector')
 parser.add_argument('-E', '--esip', dest='es_ip', nargs=1, choices=['data_ip','mgmt_ip'], default=["data_ip"], help='ES ip to use it can be data_ip or mgmt_ip, default data_ip (use with -e)')
-parser.add_argument('-I', '--info', dest='info', action="store_true", default=False ,help='print verbose server information')
+#parser.add_argument('-I', '--info', dest='info', action="store_true", default=False ,help='print verbose server information')
 parser.add_argument('-p', '--platform', dest='platform', action="store_true", default=False ,help='Generate plateform description file for hosts')
 parser.add_argument('-q', '--quiet', dest='quiet', action="store_true", default=False ,help='Do not display general information on each host')
 parser.add_argument('-s', '--sls', dest='sls', action="store_true", default=False ,help='Generate pillar.sls for hosts (in /var/tmp, see -D)')
 parser.add_argument('-S', '--selector', dest='selector', action="store_true", default=False ,help='Build selector list for scality common pillar')
 parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target hosts, use all to loop on all minions')
-parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
+parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Print verbose information on servers')
 args, ukn = parser.parse_known_args()
 
 logging.basicConfig(format='%(levelname)-8s : %(funcName)-20s: %(message)s',level=logging.INFO)
@@ -65,7 +78,7 @@ class MyRing():
     self.get_grains_pillars()
     self.isnode = False
     self.sls = args.sls
-    self.info = args.info
+    self.info = args.verbose
     self.outdir = args.dir[0]+"/"
     if os.access(self.outdir, os.W_OK) and os.path.isdir(self.outdir):        
         self.outdir=os.path.abspath(self.outdir)+"/" 
@@ -203,7 +216,18 @@ class MyRing():
           logger.debug("Unexpected Value found {0}".format(this)) 
     return(hdd,ssd) 
 
+  # count existing ifs with ip (may be redundant with grains before)
   def get_ip4_iface_count(self,grains):
+    allifs=grains['ip4_interfaces'].keys()
+    allifs.remove('lo')
+    keep=[]
+    for i in allifs:
+      if grains['ip4_interfaces'][i] != []:
+        keep.append(i)
+    count=len(keep)
+    logger.debug("Found {0} ip4 ifs {1} from {2}".format(count,keep,allifs))
+    return(count)
+
   # Use a function to be able to fine tune search if needed
     allifs=grains['ip4_interfaces'].keys()
     allifs.remove('lo')
