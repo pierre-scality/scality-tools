@@ -20,7 +20,7 @@ parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target 
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 args, ukn = parser.parse_known_args()
 
-logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
+logging.basicConfig(format='%(levelname)-8s : %(funcName)-20s: %(message)s',level=logging.INFO)
 #logger = logging.getLogger()
 logger = logging.getLogger(__name__)
 #ch = logging.StreamHandler()
@@ -54,7 +54,7 @@ def disable_proxy():
 
 class MyRing():
   def __init__(self,args):
-    self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'storage' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' , 'ROLE_CONN_SPROXYD' : 'native rest'}
+    self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'storage' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' , 'ROLE_CONN_SPROXYD' : 'sproxyd'}
     self.csvbanner=['data_ip', 'data_iface', 'mgmt_ip', 'mgmt_iface', 's3_ip', 's3_iface', 'svsd_ip', 'svsd_iface', 'ring_membership', 'role', 'minion_id', 'enclosure', 'site', '#cpu', 'cpu', 'ram', '#nic', 'nic_size', '#os_disk', 'os_disk_size', '#data_disk', 'data_disk_size', '#raid_card', 'raid_cache', 'raid_card_type', '#ssd', 'ssd_size', '#ssd_for_s3', 'ssd_for_s3_size']
     self.csvringbanner=["sizing_version","customer_name","#ring","data_ring_name","meta_ring_name","HALO API key","S3 endpoint","cos","arc-data","arc-coding"]
     self.virtualhost = ['VMware Virtual Platform','OpenStack Nova']
@@ -78,7 +78,17 @@ class MyRing():
     self.sup = None
     self.es_ip = args.es_ip[0]
     self.forcees = args.forcees
+    # Hardcoded values for csv file build
     self.sizingversion=0.0
+    self.nic_size=10
+    # Used for store only
+    self.raid_card_count=1
+    self.raid_card_cache=4
+    self.raid_card_type="DEFINE_RAID_CARD_HERE"
+    # Hardcoded values for OS disk
+    #os_disk;os_disk_size
+    self.osdisk_count=1
+    self.osdisk_size=50
  
   def get_grains_pillars(self):
     minionvers = {}
@@ -117,7 +127,7 @@ class MyRing():
     return(csvrole) 
 
 
-  def display_selector(self):
+  def create_selector(self):
     outfile=self.outdir+"selector.sls"
     try:
       f=open(outfile, 'w')
@@ -126,7 +136,6 @@ class MyRing():
       return(9)
     roles={}
     logger.debug('Getting roles from {0}'.format(self.grains.keys()))
-    logger.info('Selector : ')
     for srv in sorted(self.grains.keys()):
       if not 'roles' in self.grains[srv]:
         logger.warning("No roles for server {0}".format(srv))
@@ -144,10 +153,8 @@ class MyRing():
           roles[role]='L@'+srv
         else:
           roles[role]=roles[role]+","+srv 
-    print "  selector:"
     f.write("  selector: \n")
     for i in roles:
-      print "    {0}: {1}".format(i,roles[i],info=True)
       f.write("    {0}: {1}\n".format(i,roles[i]))
     if not 'elastic' in roles.keys():
       if self.forcees != None:
@@ -159,7 +166,7 @@ class MyRing():
           logger.error("Can not set elastic role, selector {0} not found".format(self.forcees[0])) 
       else:
         logger.warning("can not create selector for elastic role")    
-    logger.info("Selector file created on {0}".format(outfile))
+    logger.info("Create selector file : {0}".format(outfile))
     f.close()
     return(roles)
 
@@ -196,6 +203,19 @@ class MyRing():
           logger.debug("Unexpected Value found {0}".format(this)) 
     return(hdd,ssd) 
 
+  def get_ip4_iface_count(self,grains):
+  # Use a function to be able to fine tune search if needed
+    allifs=grains['ip4_interfaces'].keys()
+    allifs.remove('lo')
+    count=len(allifs)
+    logger.debug("Found {0} ip4 ifs".format(count))
+    return(count)
+
+  # simulate functin to get os disk values
+  def set_csv_osdisk(self,srv):
+    self.add_csv(srv,'#os_disk',self.osdisk_count)
+    self.add_csv(srv,'os_disk_size',self.osdisk_size)
+
   def get_srv_info(self,srv):
     serverinfo=["id","productname","num_cpus","cpu_model","mem_total","os","osrelease","SSDs"]
     #hdd=["rot_count","rot_size"]
@@ -229,6 +249,16 @@ class MyRing():
     self.add_csv(srv,'minion_id',srv)
     self.add_csv(srv,'#cpu',self.grains[srv]['num_cpus'])
     self.add_csv(srv,'cpu',"\"{0}\"".format(self.grains[srv]['cpu_model']))
+    self.add_csv(srv,'ram',str(self.grains[srv]['mem_physical']))
+    self.add_csv(srv,'#nic',self.get_ip4_iface_count(self.grains[srv]))
+    # Not doing NW speed to limit salt calls. Speed is not in the grains.
+    self.add_csv(srv,'nic_size',self.nic_size)
+    self.set_csv_osdisk(srv)
+    
+    if 'ROLE_STORE' in grains['roles']:
+      self.add_csv(srv,'#raid_card',self.raid_card_count)
+      self.add_csv(srv,'raid_cache',self.raid_card_cache)
+      self.add_csv(srv,'raid_card_type',self.raid_card_type)
     enclosure=self.grains[srv]['productname']
     if enclosure in self.virtualhost:
       enclosure="VIRTUAL MACHINE"
@@ -299,6 +329,7 @@ class MyRing():
     if 'data_ip' in pillar:
       self.pr_silent("data_ip : {0}".format(pillar['data_ip']),info=True)
       localpillar['data_ip']=pillar['data_ip']
+      self.add_csv(srv,'data_ip',localpillar['data_ip'])
     elif 'data_iface' in pillar:
       iface=pillar['data_iface']
       logger.debug("iface {0} ".format(iface))
@@ -309,6 +340,7 @@ class MyRing():
             if self.grains[srv]['ip4_interfaces'][iface][0] != '127.0.0.1':
               logger.warning("Server {0} Using random local ip as no data ip/if grain found : chosen {0}".format(srv,self.grains[srv]['ip4_interfaces'][iface][0]))
               localpillar['data_ip']=self.grains[srv]['ip4_interfaces'][iface][0]
+              self.add_csv(srv,'data_ip',localpillar['data_ip'])
               break
         return(1)
       else:
@@ -317,14 +349,16 @@ class MyRing():
         except:
           logger.error("Can not get data_ip with {} for server {}".format(iface,srv))
         localpillar['data_ip'] = data_ip
-        self.pr_silent("data_ip : {0}".format(data_ip),info=True)
+        self.add_csv(srv,'data_ip',localpillar['data_ip'])
         logger.debug("adding ip {0} ".format(data_ip))
   
     ## ugly code to manage mgmt_iface case need to rethink the algo 
+    ## Do not add _iface in the csv file
     logger.debug("Checking mgmt_ip") 
     if 'mgmt_ip' in pillar:
       self.pr_silent("mgmt_ip : {0}".format(pillar['mgmt_ip']),info=True)
       localpillar['mgmt_ip']=pillar['mgmt_ip']
+      self.add_csv(srv,'mgmt_ip',localpillar['mgmt_ip'])
     elif 'mgmt_iface' in pillar:
       iface=pillar['mgmt_iface']
       if not iface in self.grains[srv]['ip4_interfaces']:
@@ -333,6 +367,7 @@ class MyRing():
           logger.debug("Using data ip for mgmt ip as neither mgmt_ip/mgmt_iface usable")
           mgmt_ip=data_ip
           localpillar['mgmt_ip']=mgmt_ip
+          self.add_csv(srv,'mgmt_ip',mgmt_ip)
         else:
           logger.error("No mgmt and data ip found")
       else:
@@ -340,16 +375,18 @@ class MyRing():
           mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
         except:
           logger.error("Can not get mgmt_ip with {} for server {}".format(iface,srv))
-        self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
         localpillar['mgmt_ip']=mgmt_ip
+        self.add_csv(srv,'mgmt_ip',localpillar['mgmt_ip'])
     else:
       mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
       self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
       localpillar['mgmt_ip']=mgmt_ip
+      self.add_csv(srv,'mgmt_ip',localpillar['mgmt_ip'])
     if 'zone' in pillar:
       localpillar['zone'] = pillar['zone']
     else:
       localpillar['zone'] = 'site1'
+    self.add_csv(srv,'site',localpillar['zone'])
     if self.sls:
       if self.forcees != None:
         logger.debug("Try to force ES if proper role")
@@ -396,7 +433,7 @@ class MyRing():
     except:
       logger.error("Can't generate pillar, opening {0} with error {1}".format(outfile,sys.exc_info()[0]))
       return(9)
-    logger.info("generating top pillar sls file {0}".format(outfile))
+    logger.info("Create top sls file : {0}".format(outfile))
     f.write("base:\n  '*':\n    - scality-common\n    - order: 1\n")
     for i in sorted(self.grains.keys()):
       logger.debug("Adding {0} to top file".format(i))
@@ -460,9 +497,9 @@ class MyRing():
     logger.debug("create_csvtop : found {0}".format(csvtopvalue))
     return(csvtopvalue)
 
-  def print_csv(self):
+  def create_csv(self):
     outfile=self.outdir+"plateform.csv"
-    logger.info("Creating csv file : {0}".format(outfile))
+    logger.info("Create csv file : {0}".format(outfile))
     line=""
     ##### sizing_version;customer_name;#ring;data_ring_name;meta_ring_name;HALO API key;S3 endpoint;cos;arc-data;arc-coding;;;;;;;;;;;;;;;;;;;
     ##### 17,5;<CUSTOMERNAME>;2;DATA;META;;s3.mediahubaustralia.com.au;3;7;5;;;;;;;;;;;;;;;;;;;
@@ -512,9 +549,9 @@ class MyRing():
       self.get_srv_info(i)
       self.get_if_info(i)
     if self.platform == True:
-      self.print_csv() 
+      self.create_csv() 
     if args.selector == True:
-      self.display_selector()   
+      self.create_selector()   
     if self.sls == True: 
       self.create_top_sls()
     exit(0)
