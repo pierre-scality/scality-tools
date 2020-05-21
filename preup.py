@@ -54,8 +54,9 @@ def disable_proxy():
 
 class MyRing():
   def __init__(self,args):
-    self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'storage' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' }
+    self.definition = { 'ROLE_CONN_CIFS' : 'smb', 'ROLE_ELASTIC' : 'elastic' , 'ROLE_STORE' : 'storage' , 'ROLE_ZK_NODE' : 'zookeeper' , 'ROLE_SVSD' : 'svsd' , 'ROLE_CONN_SOFS' : 'sofs' , 'ROLE_CONN_NFS' : 'nfs' , 'ROLE_CONN_CDMI' : 'cdmi', 'ROLE_SUP' : 'supervisor' , 'ROLE_HALO' : 'halo' , 'ROLE_CONN_SPROXYD' : 'native rest'}
     self.csvbanner=['data_ip', 'data_iface', 'mgmt_ip', 'mgmt_iface', 's3_ip', 's3_iface', 'svsd_ip', 'svsd_iface', 'ring_membership', 'role', 'minion_id', 'enclosure', 'site', '#cpu', 'cpu', 'ram', '#nic', 'nic_size', '#os_disk', 'os_disk_size', '#data_disk', 'data_disk_size', '#raid_card', 'raid_cache', 'raid_card_type', '#ssd', 'ssd_size', '#ssd_for_s3', 'ssd_for_s3_size']
+    self.csvringbanner=["sizing_version","customer_name","#ring","data_ring_name","meta_ring_name","HALO API key","S3 endpoint","cos","arc-data","arc-coding"]
     self.virtualhost = ['VMware Virtual Platform','OpenStack Nova']
     self.target = args.target
     if self.target == None:
@@ -74,8 +75,10 @@ class MyRing():
     self.silent =  args.quiet
     self.platform =  args.platform
     self.csv = {}
+    self.sup = None
     self.es_ip = args.es_ip[0]
     self.forcees = args.forcees
+    self.sizingversion=0.0
  
   def get_grains_pillars(self):
     minionvers = {}
@@ -279,6 +282,8 @@ class MyRing():
     if not isinstance(roles, list): 
       roles=roles.split()
     strroles=''.join(","+e for e in roles)[1:]
+    if 'ROLE_SUP' in roles:
+      self.sup=srv
     logger.info("Server {0:<10} has roles : {1:<20}".format(srv,strroles))
 
   def get_if_info(self,srv):
@@ -405,26 +410,91 @@ class MyRing():
         self.csv[host].update({field:''})
     self.csv[host].update({p:v})
 
+  # get the pillar and return list "DATA,MD"
+  # if unable return more or less random
+  def guess_meta_ring(self,rings):
+    found=None
+    for i in rings:
+      if self.pillar[self.sup]['scality']['ring_details'][i]['is_ssd'] == True:
+        found=i
+        break
+    logger.debug("MD ring found > {0} < if any".format(found)) 
+    return(found) 
+
+  """ sizing_version,customer_name;#ring;data_ring_name;meta_ring_name;HALO API key;S3 endpoint;cos;arc-data;arc-coding"""
+  def create_csvtop(self):
+    logger.debug("create_csvtop : build csv's rings line")
+    csvtopvalue={}
+    csvtopvalue['arc-data'] = None
+    csvtopvalue['arc-coding'] = None
+    for i in self.grains.keys():
+      ## Assume that rings is in the pillar or die ... and in order data,meta
+      rings=self.pillar[self.sup]['scality']['rings'].split(",")
+      csvtopvalue['#ring']=len(rings)
+      if len(rings) == 1:
+        csvtopvalue['data_ring_name']=rings[0]
+        csvtopvalue['meta_ring_name']=None
+      elif len(rings) >= 2:
+        md=self.guess_meta_ring(rings)
+        if md != None:
+          csvtopvalue['meta_ring_name']=md
+          rings.remove(md)
+          csvtopvalue['data_ring_name']=rings[0]
+        else:
+          csvtopvalue['meta_ring_name']=rings[1]
+          csvtopvalue['data_ring_name']=rings[0]
+      allcos=self.pillar[self.sup]['scality']['ring_details'][csvtopvalue['data_ring_name']]['redundancy']['cos']
+      maxcos=0
+      for i in allcos:
+        if i[0:3] == 'ARC':
+          csvtopvalue['arc-data'] = i[3:].split('+')[0]
+          csvtopvalue['arc-coding'] = i[3][3:].split('+')[1]
+        else:
+          if i > maxcos:
+            maxcos=i
+      csvtopvalue['cos'] = maxcos
+      csvtopvalue['sizing_version']=self.sizingversion
+      csvtopvalue['customer_name']='INSERT_CUSTOMER_NAME_HERE'
+      csvtopvalue['HALO API key']='INSERT_HALO_KEY_HERE'
+      csvtopvalue['S3 endpoint']='INSERT S3 ENDPOINT'
+    logger.debug("create_csvtop : found {0}".format(csvtopvalue))
+    return(csvtopvalue)
+
   def print_csv(self):
     outfile=self.outdir+"plateform.csv"
-    header=""
+    logger.info("Creating csv file : {0}".format(outfile))
+    line=""
+    ##### sizing_version;customer_name;#ring;data_ring_name;meta_ring_name;HALO API key;S3 endpoint;cos;arc-data;arc-coding;;;;;;;;;;;;;;;;;;;
+    ##### 17,5;<CUSTOMERNAME>;2;DATA;META;;s3.mediahubaustralia.com.au;3;7;5;;;;;;;;;;;;;;;;;;;
+    csvtopvalue=self.create_csvtop()
     try:
       f=open(outfile, 'w') 
     except:
       logger.error("Can't generate plateform file, opening {0} with error {1}".format(outfile,sys.exc_info()[0]))
       return(9)
-    logger.info("generating plateform file {0}".format(outfile))
+    f.write("ring ;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n")
+    for i in self.csvringbanner:
+      line=line+str(i)+";"
+    line.strip(';')
+    line=line+"\n"
+    f.write(line)
+    line=""
+    for i in self.csvringbanner:
+      line=line+str(csvtopvalue[str(i)])+";"
+    line.strip(';')
+    f.write(str(line)+"\n")
+    f.write(";;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n")
+    f.write("servers ;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n")
+    line=""
     for i in self.csvbanner:
-      header=header+str(i)+","
-    header.strip(',')
-    self.pr_silent(header)
-    f.write(str(header)+"\n")
+      line=line+str(i)+";"
+    line.strip(';')
+    f.write(str(line)+"\n")
     for i in self.csv.keys():
       line=""
       for j in self.csvbanner:
-        line=line+str(self.csv[i][j])+","
-      line.strip(',')
-      self.pr_silent(line)
+        line=line+str(self.csv[i][j])+";"
+      line.strip(';')
       f.write(str(line)+"\n")
     f.close()
 
