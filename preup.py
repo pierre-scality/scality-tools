@@ -273,7 +273,13 @@ class MyRing():
     self.add_csv(srv,'minion_id',srv)
     self.add_csv(srv,'#cpu',self.grains[srv]['num_cpus'])
     self.add_csv(srv,'cpu',"\"{0}\"".format(self.grains[srv]['cpu_model']))
-    self.add_csv(srv,'ram',str(self.grains[srv]['mem_physical']))
+    if ['mem_physical'] in self.grains[srv].keys():
+      self.add_csv(srv,'ram',str(self.grains[srv]['mem_physical']))
+    elif 'mem_total' in self.grains[srv].keys():
+      self.add_csv(srv,'ram',str(self.grains[srv]['mem_total']))
+    else:
+      self.add_csv(srv,'ram','UNKNOWRAM')
+
     self.add_csv(srv,'#nic',self.get_ip4_iface_count(self.grains[srv]))
     # Not doing NW speed to limit salt calls. Speed is not in the grains.
     self.add_csv(srv,'nic_size',self.nic_size)
@@ -308,18 +314,18 @@ class MyRing():
         if 'rot_size' in self.grains[srv]:
           self.add_csv(srv,'data_disk_size',format(self.grains[srv]['rot_size']/self.grains[srv]['rot_count']/(1024 * 1024 * 1024)))
         else:
-          logger.warning("Server {0} has rot_count but no rot_size".format(srv))
+          logger.debug("Server {0} has rot_count but no rot_size".format(srv))
       else:
-        logger.warning("Server {0} has no rot_count".format(srv))
+        logger.debug("Server {0} has no rot_count".format(srv))
         self.add_csv(srv,'#data_disk',format(hd[0]))
       if 'ssd_count' in self.grains[srv]:
         self.add_csv(srv,'#ssd',format(self.grains[srv]['ssd_count']))
         if 'ssd_size' in self.grains[srv]:
           self.add_csv(srv,'ssd_size',format(self.grains[srv]['ssd_size']/self.grains[srv]['ssd_count']/(1024 * 1024 * 1024)))
         else:
-          logger.warning("Server {0} has ssd_count but no ssd_size".format(srv))
+          logger.debug("Server {0} has ssd_count but no ssd_size".format(srv))
       else:
-        logger.warning("Server {0} has no ssd_count".format(srv))
+        logger.debug("Server {0} has no ssd_count".format(srv))
         self.add_csv(srv,'#ssd',format(hd[1]))
       if not 'rings' in self.pillar[srv]['scality']:
         logger.warning("not rings found for store node {0}".format(srv))
@@ -358,15 +364,15 @@ class MyRing():
       iface=pillar['data_iface']
       logger.debug("iface {0} ".format(iface))
       if not iface in self.grains[srv]['ip4_interfaces']:
-        logger.error("data_iface {0} is not present in grains {0}".format(iface,self.grains[srv]['ip4_interfaces']))
+        logger.error("data_iface {0} is not present in grains {1}".format(iface,self.grains[srv]['ip4_interfaces']))
         for iface in self.grains[srv]['ip4_interfaces'].keys():
           if not self.grains[srv]['ip4_interfaces'][iface] == []:
             if self.grains[srv]['ip4_interfaces'][iface][0] != '127.0.0.1':
-              logger.warning("Server {0} Using random local ip as no data ip/if grain found : chosen {0}".format(srv,self.grains[srv]['ip4_interfaces'][iface][0]))
+              logger.warning("Server {0} Using random local ip as no data ip/if grain found : chosen {1} ({2})".format(srv,self.grains[srv]['ip4_interfaces'][iface][0],iface))
               localpillar['data_ip']=self.grains[srv]['ip4_interfaces'][iface][0]
               self.add_csv(srv,'data_ip',localpillar['data_ip'])
               break
-        return(1)
+        #return(1)
       else:
         try:
           data_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
@@ -393,7 +399,8 @@ class MyRing():
           localpillar['mgmt_ip']=mgmt_ip
           self.add_csv(srv,'mgmt_ip',mgmt_ip)
         else:
-          logger.error("No mgmt and data ip found")
+          logger.warning("No mgmt and data ip found, forcing to : {0}".format(localpillar['data_ip']))
+          mgmt_ip = localpillar['data_ip']
       else:
         try:
           mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
@@ -422,7 +429,12 @@ class MyRing():
       self.create_sls(localpillar,srv)
 
   def create_sls(self,dict,srv):
-    outfile=self.outdir+srv+".sls"
+    if srv.count('.') != 0:
+      filename=srv.split('.')[0]
+      outfile=self.outdir+filename+".sls"
+      logger.warning("Server {0} has . in the name, using short name for pillar file : {1}".format(srv,filename))
+    else:
+      outfile=self.outdir+srv+".sls"
     try:
       f=open(outfile, 'w') 
     except:
@@ -435,7 +447,9 @@ class MyRing():
       f.write("  net_ip: {0}\n".format(dict['elasticsearch']))
       dict.pop('elasticsearch')
     f.write("scality: \n")
-    for i in dict.keys():
+    localindex=dict.keys()
+    localindex.sort()
+    for i in localindex:
       line="  {0}: {1}".format(i,dict[i])
       self.pr_silent("{0}".format(line),info=True) 
       f.write(str(line)+"\n")
@@ -460,8 +474,12 @@ class MyRing():
     logger.info("Create top sls file : {0}".format(outfile))
     f.write("base:\n  '*':\n    - scality-common\n    - order: 1\n")
     for i in sorted(self.grains.keys()):
+      if i.count('.') != 0:
+        filename=i.split('.')[0]
+      else:
+        filename=i
       logger.debug("Adding {0} to top file".format(i))
-      line="  '{0}':\n    - match: compound\n    - {1}\n    - order: 2".format(i,i)
+      line="  '{0}':\n    - match: compound\n    - {1}\n    - order: 2".format(i,filename)
       f.write(str(line)+"\n")
 
   def add_csv(self,host,p,v):
