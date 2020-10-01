@@ -354,7 +354,7 @@ class MyRing():
       localpillar['supervisor_ip']=pillar['supervisor_ip']
     else:
       self.pr_silent("No supervisor ip defined")
-
+    iface=None
     data_ip=""
     if 'data_ip' in pillar:
       self.pr_silent("data_ip : {0}".format(pillar['data_ip']),info=True)
@@ -381,7 +381,17 @@ class MyRing():
         localpillar['data_ip'] = data_ip
         self.add_csv(srv,'data_ip',localpillar['data_ip'])
         logger.debug("adding ip {0} ".format(data_ip))
-  
+    if iface == None:
+      allifs=self.grains[srv]['ip4_interfaces']
+      logger.debug("Looking for data_ip {0} iface in {1} ".format(data_ip,allifs))
+      for i in allifs.keys():
+        print allifs[i][0],localpillar['data_ip']
+        if allifs[i][0] == localpillar['data_ip']:
+          iface=i
+          logger.debug("ip {0} found on {1} ".format(localpillar['data_ip'],iface))
+          break 
+
+ 
     ## ugly code to manage mgmt_iface case need to rethink the algo 
     ## Do not add _iface in the csv file
     logger.debug("Checking mgmt_ip") 
@@ -527,7 +537,7 @@ class MyRing():
       for i in allcos:
         if i[0:3] == 'ARC':
           csvtopvalue['arc-data'] = i[3:].split('+')[0]
-          csvtopvalue['arc-coding'] = i[3][3:].split('+')[1]
+          csvtopvalue['arc-coding'] = i[3:].split('+')[1]
         else:
           if i > maxcos:
             maxcos=i
