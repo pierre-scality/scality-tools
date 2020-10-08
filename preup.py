@@ -386,12 +386,13 @@ class MyRing():
         localpillar['data_ip'] = data_ip
         self.add_csv(srv,'data_ip',localpillar['data_ip'])
         logger.debug("adding ip {0} ".format(data_ip))
+    # not sure why I tried to get the iface from ip ...
     if iface == None:
       allifs=self.grains[srv]['ip4_interfaces']
-      logger.debug("Looking for data_ip {0} iface in {1} ".format(data_ip,allifs))
+      logger.debug("Looking for data_ip {0} iface in {1} ".format(pillar['data_ip'],allifs))
       for i in allifs.keys():
-        print allifs[i][0],localpillar['data_ip']
-        if allifs[i][0] == localpillar['data_ip']:
+        logger.debug("all ifs {0} {1}".format(allifs[i],localpillar['data_ip']))
+        if allifs[i] == localpillar['data_ip']:
           iface=i
           logger.debug("ip {0} found on {1} ".format(localpillar['data_ip'],iface))
           break 
