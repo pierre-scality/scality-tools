@@ -284,7 +284,12 @@ class MyRing():
     # Not doing NW speed to limit salt calls. Speed is not in the grains.
     self.add_csv(srv,'nic_size',self.nic_size)
     self.set_csv_osdisk(srv)
-    
+   
+    if not 'roles' in grains.keys():
+      logger.error("machine {0} has no roles, can't create entry".format(srv))	
+      exit(9)
+    else:
+      logger.debug("roles found for server {0} : {1}".format(srv,grains['roles']))
     if 'ROLE_STORE' in grains['roles']:
       self.add_csv(srv,'#raid_card',self.raid_card_count)
       self.add_csv(srv,'raid_cache',self.raid_card_cache)
