@@ -50,7 +50,7 @@ SPECIAL=('compare')
 CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
 RINGOP_W=('set','run','logset','list')
-RINGOP_R=('get','status','heal','logget','run','joinall','server')
+RINGOP_R=('get','status','heal','logget','run','joinall','server','storage')
 RINGOPS=RINGOP_W+RINGOP_R
 NODEOP_W=('set','logset')
 NODEOP_R=('get','logget','cat','list','comp','compare','stat','disk','status')
@@ -538,6 +538,9 @@ class ring_op():
         self.exec_print(cmd,raw=1)
       elif self.op == 'joinall':
         cmd="ringsh -r "+self.ring+" "+self.sub+" nodeJoinAll "+self.ring
+        self.exec_print(cmd,rs=True)
+      elif self.op == 'storage':
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringStorage "+self.ring
         self.exec_print(cmd,rs=True)
       elif self.op in ('heal','get'):
         cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring+" | grep -v Load"
