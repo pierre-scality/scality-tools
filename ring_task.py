@@ -214,11 +214,13 @@ class ring_obj():
           timetogo=keytogo/keysec/60
         if type == 'move':
           dest=str(task['dest'])
-          ip,port=dest.split(":")
-          hostn=socket.gethostbyaddr(ip)[0]
-          hostn=hostn.split('-')[0]
-          nport=int(port)-4244+1
-          dest=str(ring+"-"+hostn+"-n"+str(nport))
+          logger.debug("task is  {0}".format(task))
+          if dest != "auto":
+            ip,port=dest.split(":")
+            hostn=socket.gethostbyaddr(ip)[0]
+            hostn=hostn.split('-')[0]
+            nport=int(port)-4244+1
+            dest=str(ring+"-"+hostn+"-n"+str(nport))
 
           self.print_whats_needed("Task {0:8} {1:30} to {7:20} cur {2:12} prev {6:12} total {3:12} key/sec {4:6} time to go {5:9} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest))
         else:
