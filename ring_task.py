@@ -201,7 +201,7 @@ class ring_obj():
       print d+" ",
       tid=task['tid']+":"+node
       if not tid in self.prev.keys():
-        self.print_whats_needed("Task {0:10} {1:35} current {2:8} total {3:8} NEW TASK".format(type,tid,current,total))
+        self.print_whats_needed("Task {0:<10} {1:<35} current {2:<8} total {3:<8} NEW TASK".format(type,tid,current,total))
         self.prev[tid]={}
         self.prev[tid]['prev']=current
       else:
@@ -222,9 +222,9 @@ class ring_obj():
             nport=int(port)-4244+1
             dest=str(ring+"-"+hostn+"-n"+str(nport))
 
-          self.print_whats_needed("Task {0:8} {1:30} to {7:20} cur {2:12} prev {6:12} total {3:12} key/sec {4:6} time to go {5:9} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest))
+          self.print_whats_needed("Task {0:<8} {1:<30} to {7:<20} cur {2:<12} prev {6:<12} total {3:<12} key/sec {4:<6} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest))
         else:
-      	  self.print_whats_needed("Task {0:8} {1:30} cur {2:12} (prev) {6:12} total {3:12} key/sec {4:6} time to go {5:9} minutes".format(type,tid,current,total,keysec,timetogo,prev))
+      	  self.print_whats_needed("Task {0:<8} {1:<30} cur {2:<12} (prev) {6:<12} total {3:<12} key/sec {4:<6} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev))
         self.prev[tid]['prev']=current
 
  
