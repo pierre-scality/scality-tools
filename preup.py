@@ -425,7 +425,9 @@ class MyRing():
         localpillar['mgmt_ip']=mgmt_ip
         self.add_csv(srv,'mgmt_ip',localpillar['mgmt_ip'])
     else:
-      mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+      #mgmt_ip = self.grains[srv]['ip4_interfaces'][iface][0] 
+      # if neither mngt_ip/iface found we use data_ip
+      mgmt_ip = localpillar['data_ip']
       self.pr_silent("mgmt_ip : {0}".format(mgmt_ip),info=True)
       localpillar['mgmt_ip']=mgmt_ip
       self.add_csv(srv,'mgmt_ip',localpillar['mgmt_ip'])
