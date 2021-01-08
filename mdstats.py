@@ -12,19 +12,91 @@ import salt.runner
 
 
 try:
-  parser = argparse.ArgumentParser(description="Check server's process status")
+  parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
+  Check server's process status
+  mdstat.py <option> <command>
+  options are using - or -- argument and command is what you want to query.
+  There are 2 commands type bucket, session
+  Subcommand can be leader or bucket, usually without subcommand it will list information about the command 
+  Commands will be <command> <subcommand> <argument>
+  A typical example is :
+  mdstat.py -s server1 bucket leader mybucket => Get the leader for bucket mybucket
+  mdstat.py -s server1 session leader         => Get the leader for each session 
+  mdstat.py -s server1 session leader 1       => Get the leader for session 1
+''')
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
-  #parser.add_argument('-t', '--target', nargs=1, const=None ,help='Specify target daemon to check queue')
-  parser.add_argument('-L', '--leaders', dest='leaders', action="store_true", default=False ,help='Display all 8 raft sessions leaders')
-  parser.add_argument('-b', '--bucket', nargs=1, const=None, help='Display leader for a given bucket')
-  parser.add_argument('-r', '--raft', type=int, default=-1 , help='Display a given raft session menbers')
-  parser.add_argument('-s', '--server', default="sghk1-node1" , help='Display a given raft session menbers')
-  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
-  args=parser.parse_args()
+  parser.add_argument('-s', '--server', default="localhost" , help='Display a given raft session menbers')
+  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
+  #args=parser.parse_args()
 except SystemExit:
 #  bad = sys.exc_info()[1]
 #  parser.print_help(sys.stderr)
   exit(9)
+
+MD_SUB_SESSION=('bucket')
+MD_SUB_BUCKET=('leader')
+
+
+MD_CMD=('session','bucket')
+MD_BUCKET=('leader','session')
+MD_SESSION=('leader','session','bucket')
+
+
+class Command():
+  def __init__(self,arguments,raft):
+    self.args=arguments
+    self.raft=raft
+
+  def getCmd(self):
+    display.debug("Running getCmd with arg {0}".format(self.args))
+    if len(self.args) == 0:
+      self.raft.getRaftAll()
+      return(0)
+    self.cmd=self.args[0]
+    if self.cmd not in MD_CMD:
+      display.error("Command is not supported {0}".format(self.cmd))
+      exit(1)
+    self.remaining=self.args[1:]
+    self.filterCmd()
+    return(0) 
+
+  def filterCmd(self):
+    display.debug("Running filterCmd")
+    if self.cmd == "session": 
+      if len(self.remaining) == 0:
+        self.raft.getSessionLeaders()
+        exit(0)
+    if self.cmd == "bucket":
+      if len(self.remaining) == 0:
+        display.error("Need argument for command {0} : bucketname and {1}".format(self.cmd,MD_BUCKET))
+        exit(9)
+      else:
+        self.bucket=self.remaining.pop(0)
+        try:
+          self.query=self.remaining.pop(0)  
+        except IndexError:
+          out=self.raft.getBucketInformation(self.bucket) 
+          if out == None:
+            exit(9)
+          else:
+            exit(0) 
+        self.doBucketOperation()    
+    return(0) 
+
+  def doBucketOperation(self):
+    display.debug("Running doBucketOperation {0} {1}".format(self.bucket,self.query))
+    if self.query not in MD_BUCKET:
+      display.error("Need operation for bucket {0}".format(self.bucket),fatal=True)
+    if self.query == 'leader':
+        display.debug("Getting leader for bucket {0}".format(self.bucket))
+        out=self.raft.getBucketLeader(self.bucket)
+        if out == None:
+          exit(9)
+        else:
+          exit(0) 
+    elif self.query == 'leader':
+        display.debug("Getting leader for bucket {0}".format(self.bucket))
+        
 
 
 # Salt client breaks logging class.
@@ -72,6 +144,10 @@ class Msg():
     if self.level == "debug":
       header="DEBUG"
       print "{0:15} : {1}".format(header,msg)
+  
+  def raw(self,msg):
+      print "{0}".format(msg)
+
 
   def showlevel(self):
     print "Error level is {0} : ".format(self.level)
@@ -98,16 +174,17 @@ def disable_proxy():
     display.debug("Proxy has been disabled")
 
 class Raft():
-  def __init__(self):
-    self.server="sghk1-node1"
+  def __init__(self,args,raft=-1):
+    display.debug("Raft instance creation with {0} {1}".format(args,cli))
+    self.server=args.server
+    self.raftsession={}
+    self.raft=raft
 
-  def setServer(self,server):
-    display.verbose("Using {0} as acces point".format(server))
-    self.server=server
+  def setServer(self):
+    display.verbose("Using {0} as endpoint".format(self.server))
 
-  def query_url(self,url):
+  def query_url(self,url,fatal=False):
     display.verbose("Querying url {}".format(url))
-    #url="http://{0}/api/v0.1/es_proxy/_cluster/health?pretty".format(target)
     try:
       r = requests.get(url)
     except requests.exceptions.RequestException as e:
@@ -118,29 +195,54 @@ class Raft():
       #status=json.loads(r.text)
       return(r.text)
     else:
-      display.error("You request return non 200 response {0} for \n {1}".format(r.status_code,url))
+      display.error("You request return non 200 response {0} for : {1}".format(r.status_code,url))
+      if fatal == True:
+        exit(9)
       return(None)
   
-  def getBucketInformation(self,bucket):
+  def getBucketInformation(self,bucket,full=False):
     display.verbose("getBucketInformation {0}".format(bucket))
     url="http://"+str(self.server)+":9000/default/informations/"+str(bucket)
     out=self.query_url(url)
+    if out == None:
+      return(False)     
     struct=json.loads(out)
     display.debug("Bulk output getBucketLeader \n {}\n".format(struct))
     leader=[]
     follower=[]
+    info={}
     for i in range(0,len(struct)):
-      if struct[i]['isLeader'] == True: 
-        leader.append(struct[0]['ip'])
-      else:
-        follower.append(struct[0]['ip'])
-    print "Leader : {0}".format(leader)  
-    print "Follower : {0}".format(follower) 
-  
+      info[struct[i]['ip']]={}
+      for key in struct[i].keys():
+        if key == 'isLeader':
+          if struct[i]['isLeader'] == True: 
+            leader.append(struct[0]['ip'])
+            session=struct[i]['raftSessionId']
+          else:
+            follower.append(struct[0]['ip'])
+        else:
+          info[struct[i]['ip']].update({key:struct[i][key]})
+    display.raw("Leader : {0} (session {1})".format(leader[0],session))
+    f=""
+    for i in follower:
+      f+="{0},".format(i)
+    f=f[:-1]
+    display.raw("Follower : {0}".format(f))
+    #if long == true:
+    max=-1
+    for ip in info.keys():
+      display.raw("Server : {0} aseq {1} cseq {2} vseq {3} bseq {4}".format(ip,info[ip]['aseq'],info[ip]['cseq'],info[ip]['vseq'],info[ip]['bseq']))
+    
+
+
+
+ 
   def getBucketLeader(self,bucket):
     url="http://"+str(self.server)+":9000/default/leader/"+str(bucket)
     display.verbose("Querying {0}".format(url))
     out=self.query_url(url)
+    if out == None:
+      return(False)     
     struct=json.loads(out)
     display.debug("Bulk output getBucketLeader {}".format(struct))
     leader=struct['host']
@@ -148,15 +250,16 @@ class Raft():
     out=json.loads(self.query_url(url))
     print "Leader {} : Raft session {}".format(leader,out)
 
-  def getAllLeaders(self):
+  def getSessionLeaders(self):
+    display.debug("Getting raft session leader for {0}".format(self.raft))
     for i in range(0,7):
-      display.debug("http://"+str(self.server)+":9000//_/raft_sessions/"+str(i)+"/leader")
-      out=self.query_url("http://"+self.server+":9000/_/raft_sessions/"+str(i)+"/leader")
-      if out == None:
-        display.error("getAllLeaders fails because request did not complete")
-        return(99)
-      out=json.loads(out)
-      print "Session {0} : Leader {1}".format(i,out['host'])
+      if self.raft==-1 or self.raft==i:
+        out=self.query_url("http://"+self.server+":9000/_/raft_sessions/"+str(i)+"/leader")
+        if out == None:
+          display.error("getSessionLeaders fails because request did not complete")
+          return(99)
+        out=json.loads(out)
+        display.raw("Session {0} : Leader {1}".format(i,out['host']))
 
   def getRaftSession(self,id):
     #curl -s http://sghk1-node1:9000/_/raft_sessions/| jq '.[0]'
@@ -173,22 +276,58 @@ class Raft():
       print el['display_name'],el['site']
       #print el
     #print "Session members {0}".format(out[id]['raftMembers'][0])
- 
+
+  def getRaftAll(self):
+    url="http://"+str(self.server)+":9000/_/raft_sessions/"
+    out=self.query_url(url)
+    out=json.loads(out)
+    ###print out
+    for i in out:
+      session=i['id']
+      display.debug("Adding session {0}".format(session))
+      self.raftsession[session]={}
+      self.raftsession[session]['connectedToLeader']=i['connectedToLeader']
+      self.raftsession[session]['members']={}
+      for j in i['raftMembers']:
+        # not very elegant but all port should be same
+        self.raftsession[session]['port']=j['port']
+        self.raftsession[session]['adminport']=j['adminPort']
+        host=j['host']
+        self.raftsession[session]['members'][host]=j
+    self.displayRaft()
+
+  def displayRaft(self):
+    for session in self.raftsession:
+      string="Session id {0} : ".format(session)
+      for el in self.raftsession[session].keys():
+        if el == 'members':
+          substring="members : "
+          for el2 in self.raftsession[session]['members'].keys():
+            substring+="{0} ".format(self.raftsession[session]['members'][el2]['host'])
+        else:
+          string+="{0} {1} : ".format(el,self.raftsession[session][el])  
+      string+=substring
+      display.raw(string)
+    return 0
+    
 def main():
-  raft=Raft()
-  raft.setServer(args.server)
   disable_proxy()
-  if args.bucket != None:
-    raft.getBucketLeader(args.bucket[0])
+  raft=Raft(args)
+  raft.setServer()
+  cmd=Command(cli,raft)
+  cmd.getCmd()
+  #if args.bucket != None:
+    #raft.getBucketLeader(args.bucket[0])
     # Not sure how to interpret that 
     # raft.getBucketInformation(args.bucket[0])
-  if args.leaders == True:
-    raft.getAllLeaders()
-  if args.raft >= 0:
-    if args.raft > 8:
-      display.error("Raft session cant be greater than 8")
-      exit(1)
-    raft.getRaftSession(args.raft)
+  #if args.leaders == True:
+  #  raft.getSessionLeaders()
+  #  exit(0)
+  #if args.raft >= 0:
+  #  if args.raft > 8:
+  #    display.error("Raft session cant be greater than 8")
+  #    exit(1)
+  #else:
 
 
 
