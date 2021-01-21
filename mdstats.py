@@ -216,10 +216,12 @@ class Raft():
       for key in struct[i].keys():
         if key == 'isLeader':
           if struct[i]['isLeader'] == True: 
-            leader.append(struct[0]['ip'])
+            display.debug("leader {}".format(struct[i]))
+            leader.append(struct[i]['ip'])
             session=struct[i]['raftSessionId']
           else:
-            follower.append(struct[0]['ip'])
+            display.debug("follower {}".format(struct[i]))
+            follower.append(struct[i]['ip'])
         else:
           info[struct[i]['ip']].update({key:struct[i][key]})
     display.raw("Leader : {0} (session {1})".format(leader[0],session))
