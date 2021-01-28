@@ -50,7 +50,7 @@ class Command():
   def getCmd(self):
     display.debug("Running getCmd with arg {0}".format(self.args))
     if len(self.args) == 0:
-      self.raft.getRaftAll()
+      self.raft.getSessionLeaders()
       return(0)
     self.cmd=self.args[0]
     if self.cmd not in MD_CMD:
@@ -64,8 +64,11 @@ class Command():
     display.debug("Running filterCmd")
     if self.cmd == "session": 
       if len(self.remaining) == 0:
-        self.raft.getSessionLeaders()
+        #self.raft.getSessionLeaders()
+        self.raft.getRaftAll()
         exit(0)
+      else:
+        self.doSessionOperation()
     if self.cmd == "bucket":
       if len(self.remaining) == 0:
         display.error("Need argument for command {0} : bucketname and {1}".format(self.cmd,MD_BUCKET))
@@ -80,7 +83,7 @@ class Command():
             exit(9)
           else:
             exit(0) 
-        self.doBucketOperation()    
+        self.doBucketOperation()
     return(0) 
 
   def doBucketOperation(self):
@@ -96,8 +99,14 @@ class Command():
           exit(0) 
     elif self.query == 'leader':
         display.debug("Getting leader for bucket {0}".format(self.bucket))
-        
 
+
+  def doSessionOperation(self):
+    display.debug("Running doBucketOperation {0}".format(self.remaining))
+    if self.remaining[0] == "bucket":
+      if self.remaining.__len__() < 2:
+        display.error("Need at least one argument : sessions number",fatal=True)
+      self.raft.getSessionBucket(self.remaining[1])
 
 # Salt client breaks logging class.
 # Simple msg display class
@@ -179,6 +188,7 @@ class Raft():
     self.server=args.server
     self.raftsession={}
     self.raft=raft
+    self.RAFTCOUNT=9
 
   def setServer(self):
     display.verbose("Using {0} as endpoint".format(self.server))
@@ -235,11 +245,8 @@ class Raft():
     for ip in info.keys():
       display.raw("Server : {0} aseq {1} cseq {2} vseq {3} bseq {4}".format(ip,info[ip]['aseq'],info[ip]['cseq'],info[ip]['vseq'],info[ip]['bseq']))
     
-
-
-
- 
   def getBucketLeader(self,bucket):
+    display.debug("Entering getBucketLeader")
     url="http://"+str(self.server)+":9000/default/leader/"+str(bucket)
     display.verbose("Querying {0}".format(url))
     out=self.query_url(url)
@@ -252,16 +259,43 @@ class Raft():
     out=json.loads(self.query_url(url))
     print "Leader {} : Raft session {}".format(leader,out)
 
-  def getSessionLeaders(self):
-    display.debug("Getting raft session leader for {0}".format(self.raft))
-    for i in range(0,7):
+  def getSessionBucket(self,sessionnb,show=True):
+    display.debug("Entering getSessionBucket for session {0}".format(sessionnb))
+    if self.isRaftNumber(sessionnb):
+      url="http://"+str(self.server)+":9000/_/raft_sessions/"+str(sessionnb)+"/bucket"
+      out=self.query_url(url)
+    else:
+      display.error("Invalid session number {0}".format(sessionnb),fatal=True)
+    if show == True:
+      display.raw(out)
+    return(out)
+
+  def isRaftNumber(self,nb,fatal=True):
+    try: 
+      sessionnb=int(nb)
+    except:
+      display.error("{0} is not an integer".format(nb),fatal=True)
+    if  sessionnb not in range(0,self.RAFTCOUNT):
+      display.error("Raft session number must be bewteen 0 and {0}, got {1}".format(self.RAFTCOUNT-1,sessionnb),fatal=True)
+    else:
+      display.debug("{0} is a valid raft session number".format(nb))
+      return(True) 
+
+  def getSessionLeaders(self,show=True):
+    display.debug("Entering getSessionLeaders")
+    ret={}
+    for i in range(0,self.RAFTCOUNT):
       if self.raft==-1 or self.raft==i:
         out=self.query_url("http://"+self.server+":9000/_/raft_sessions/"+str(i)+"/leader")
         if out == None:
           display.error("getSessionLeaders fails because request did not complete")
           return(99)
         out=json.loads(out)
+      ret[i]=out['host']
+      if show == True:
         display.raw("Session {0} : Leader {1}".format(i,out['host']))
+    return ret
+    
 
   def getRaftSession(self,id):
     #curl -s http://sghk1-node1:9000/_/raft_sessions/| jq '.[0]'
@@ -280,6 +314,7 @@ class Raft():
     #print "Session members {0}".format(out[id]['raftMembers'][0])
 
   def getRaftAll(self):
+    display.debug("Entering function getRaftAll")
     url="http://"+str(self.server)+":9000/_/raft_sessions/"
     out=self.query_url(url)
     out=json.loads(out)
@@ -299,8 +334,10 @@ class Raft():
     self.displayRaft()
 
   def displayRaft(self):
+    display.debug("Entering function displayRaft")
+    leaders=self.getSessionLeaders(show=False)
     for session in self.raftsession:
-      string="Session id {0} : ".format(session)
+      string="Session id {0} : Leader {1:<15} : ".format(session,leaders[session])
       for el in self.raftsession[session].keys():
         if el == 'members':
           substring="members : "
