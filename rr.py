@@ -49,7 +49,7 @@ except KeyError:
 SPECIAL=('compare')
 CONN=('rest','rs2','connector','conn','accessor','r')
 NODE=('node','n')
-RINGOP_W=('set','run','logset','list')
+RINGOP_W=('set','run','logset','list','maint')
 RINGOP_R=('get','status','heal','logget','run','joinall','server','storage')
 RINGOPS=RINGOP_W+RINGOP_R
 NODEOP_W=('set','logset')
@@ -59,6 +59,9 @@ CONNOP_W=('set','logset')
 CONNOP_R=('get','logget','cat','list')
 CONNOPS=CONNOP_W+CONNOP_R
 SELF_HEALING=('rebuild_auto','chordpurge_enable','join_auto','chordproxy_enable','chordrepair_enable','chordcsd_enable')
+RING_MAINTENANCE_OFF={'rebuild_auto':'1','chordpurge_enable':'1','join_auto':'2'}
+RING_MAINTENANCE_ON={'rebuild_auto':'0','chordpurge_enable':'0','join_auto':'0'}
+RING_MAINTENANCE=('on','off')
 
 RUN_EXEC=False
 RUN_LOG=False
@@ -107,6 +110,12 @@ Other options:
 
     * ring joinall
     join all the nodes of a given ring
+
+    * ring maint [on|off]
+    set/unset rebuild/join/purge to 0/1 (2 for auto_join). No arg will show current status
+
+    * ring heal
+    Set healthealing main parameters
 
     * ring help
     show the basic heal healing params (auto join, auto rebuild ...)
@@ -618,19 +627,25 @@ class ring_op():
 
 
   def ring_op_set(self):
+    logging.debug("Entering function ring_op_set {0} {1}".format(str(self.comp),str(self.op)))
     if self.comp  == 'supervisor':
-      cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigSet "+self.ring+" "+self.param[0]+" "+self.param[1]
-      if self.run_exec == False:
-        print "NOEXEC "+str(cmd)
+      if self.op == "maint":
+        if self.param == []:
+          self.param.append('show')
+        self.ring_maint()
       else:
-        logging.debug("Running : "+cmd)
-        output=self.execute(cmd)
-        for line in output:
-          if not line:
-            continue
-          elif line.split()[0] == "Load":
-            continue
-          print line.rstrip()
+        cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigSet "+self.ring+" "+self.param[0]+" "+self.param[1]
+        if self.run_exec == False:
+          print "NOEXEC "+str(cmd)
+        else:
+          logging.debug("Running : "+cmd)
+          output=self.execute(cmd)
+          for line in output:
+            if not line:
+              continue
+            elif line.split()[0] == "Load":
+              continue
+            print line.rstrip()
     elif self.comp in ('node','accessor'):
       for i in self.server_list :
         if len(self.param)< 3:  
@@ -720,6 +735,34 @@ class ring_op():
       print '%-*s : %-*s : %-*s : %s' % (fmt[0],line[0],fmt[1],line[1],fmt[2],line[2],len(result[i]))
       #print i.replace(':',' '),len(result[i])
     return(0) 
+
+  def ring_maint(self):
+    if self.param[0] == 'show':
+      cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigGet "+self.ring+" | grep -v Load"
+      output=self.execute(cmd)
+      for line in output:
+        if not line:
+          continue
+        cat=line.split()[3].rstrip(',')
+        if cat in RING_MAINTENANCE_ON.keys():
+            print line.rstrip()
+      return 
+    logger.debug('maintenance mode {0} : ring " {1}'.format(self.param[0],self.ring))
+    if self.param[0] == 'on':
+      doop = RING_MAINTENANCE_ON
+    elif self.param[0] == 'off':
+      doop = RING_MAINTENANCE_OFF
+    else:
+      logger.debug('maintenance mode must be in {0}'.format(RING_MAINT))
+      exit(9)
+    for i in doop.keys():
+      logger.info('Setting {0} to {1} for ring {2}'.format(i,doop[i],self.ring))
+      cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigSet "+self.ring+" "+i+" "+doop[i]
+      if self.run_exec == False:
+        print "NOEXEC "+str(cmd)
+      else:
+        self.exec_print(cmd)
+
 
   def ring_op_log(self):
    logging.debug("comp {0} operation {1} : sub {2} => {3}".format(self.comp,self.op,self.sub,self.param))
