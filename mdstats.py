@@ -20,9 +20,9 @@ try:
   Subcommand can be leader or bucket, usually without subcommand it will list information about the command 
   Commands will be <command> <subcommand> <argument>
   A typical example is :
-  mdstat.py -s server1 bucket leader mybucket => Get the leader for bucket mybucket
-  mdstat.py -s server1 session leader         => Get the leader for each session 
-  mdstat.py -s server1 session leader 1       => Get the leader for session 1
+  mdstat.py -s server1                        => Display raft sessions with leader
+  mdstat.py -s server1 session          => Get the leader for each session 
+  mdstat.py -s server1 bucket <bucketname>    => Display the raft session for the bucket with servers and seq details
 ''')
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
   parser.add_argument('-s', '--server', default="localhost" , help='Display a given raft session menbers')
