@@ -9,7 +9,7 @@ import re
 import salt.client
 import salt.config
 
-parser = argparse.ArgumentParser(description="Check server's GEO replication status")
+parser = argparse.ArgumentParser(description="Set grains for rs2 multi formula using virt iface and multiple rings")
 parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
 parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='Set script in VERBOSE mode ')
 parser.add_argument('-t', '--target', nargs=1, const=None, required=True, help='MANDATORY Specify target host')
