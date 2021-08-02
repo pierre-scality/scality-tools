@@ -61,7 +61,7 @@ class Command():
     return(0) 
 
   def filterCmd(self):
-    display.debug("Running filterCmd")
+    display.debug("Running filterCmd on {}".format(self.remaining))
     if self.cmd == "session": 
       if len(self.remaining) == 0:
         #self.raft.getSessionLeaders()
@@ -102,12 +102,21 @@ class Command():
 
 
   def doSessionOperation(self):
-    display.debug("Running doBucketOperation {0}".format(self.remaining))
+    display.debug("Running doSessionOperation {0}".format(self.remaining))
+    try:
+      number=int(self.remaining[0])
+    except ValueError:
+      number=-1
+    if number != -1:
+      self.raft.displaySessionInfo(number)
+      exit(0)
     if self.remaining[0] == "bucket":
       if self.remaining.__len__() < 2:
         display.error("Need at least one argument : sessions number",fatal=True)
       self.raft.getSessionBucket(self.remaining[1])
-
+    else:
+      display.debug("Nothing to do")
+      exit(0)
 # Salt client breaks logging class.
 # Simple msg display class
 class Msg():
@@ -189,6 +198,7 @@ class Raft():
     self.raftsession={}
     self.raft=raft
     self.RAFTCOUNT=9
+    self.RAFTMBR=5
 
   def setServer(self):
     display.verbose("Using {0} as endpoint".format(self.server))
@@ -348,6 +358,41 @@ class Raft():
       string+=substring
       display.raw(string)
     return 0
+
+  def displaySessionInfo(self,nb):
+    display.debug("Entering function displaySessionInfo {}".format(nb))
+    url="http://"+str(self.server)+":9000/_/raft_sessions/"+str(nb)+"/info"
+    display.debug(url)
+    out=self.query_url(url)
+    out=json.loads(out)
+    if out['leader'] == {}:
+      display.error("No leader for session {} -> {}".format(nb,out['leader']))
+      exit(9)
+    raft_state=self.getRaftState(out['leader']['host'],out['leader']['adminPort'])
+    display.raw("Leader {}:{} => {}".format(out['leader']['host'],out['leader']['adminPort'],raft_state))
+    if len(out['connected'])==0:
+      display.error("No host connected to session {} ({})".format(nb,out['connected']))
+    elif len(out['connected'])!=self.RAFTMBR:
+      warn="WARNING not enough members (min {})".format(self.RAFTMBR)
+    else:
+      warn=""
+    connected="" 
+    for i in out['connected']:
+      connected+="{}:{} ".format(i['host'],i['port'])
+    display.raw("Members : {} {}".format(connected,warn))  
+    if out['disconnected'] == []:
+      display.debug("No disconnected member")
+    else:
+      disconnected=""
+      for i in out['disconnected']:
+        disconnected+="{}:{} ".format(i['host'],i['port'])
+      display.raw("Disconnected members : {}".format(disconnected))  
+
+  def getRaftState(self,ip,port):
+    display.debug("Entering function getRaftState {}:{}".format(ip,port))
+    url="http://{}:{}/_/raft/state".format(ip,port)
+    out=self.query_url(url)
+    return(out)
     
 def main():
   disable_proxy()
