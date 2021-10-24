@@ -28,7 +28,7 @@ except IOError:
   p="5vvou3rIjDc8" 
 
 u="https://localhost:2443"
-ring="OWPROD"
+ring="DATA"
 
 logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 logger = logging.getLogger()
@@ -44,7 +44,7 @@ def usage():
         add="""
 	-l list of task to display tasks (default move), list list move,rebuild ..
 	-r ring on which run the check 
-        -t interval between checks
+        -t interval between checks (if set to 0 will exit after first iteration)
 """
         print(message+add)
 
