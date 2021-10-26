@@ -111,8 +111,10 @@ Other options:
     * ring joinall
     join all the nodes of a given ring
 
-    * ring maint [on|off]
-    set/unset rebuild/join/purge to 0/1 (2 for auto_join). No arg will show current status
+    * ring maint [on|off] [noforce]
+    Without arg will show rebuild/purge/join ring params. With :
+      - on  -> rebuild/purge/join to 0  
+      - off -> rebuild/purge/join to 1/1/2 (2 for auto_join).  For off noforce option will set auto_join to 1 instead of 2.
 
     * ring heal
     Set healthealing main parameters
@@ -755,6 +757,10 @@ class ring_op():
     else:
       logger.debug('maintenance mode must be in {0}'.format(RING_MAINT))
       exit(9)
+    if len(self.param) > 1:
+      if self.param[1] == 'noforce' :
+        logger.debug('Setting auto_join to 1')
+        RING_MAINTENANCE_OFF['join_auto']='1'  
     for i in doop.keys():
       logger.info('Setting {0} to {1} for ring {2}'.format(i,doop[i],self.ring))
       cmd="ringsh -r "+self.ring+" "+self.sub+" ringConfigSet "+self.ring+" "+i+" "+doop[i]
