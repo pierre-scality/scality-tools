@@ -42,8 +42,8 @@ def usage():
 
         usage : """+PRGNAME
         add="""
-	-l list of task to display tasks (default move), list list move,rebuild ..
-	-r ring on which run the check 
+        -l list of task to display tasks (default move), list list move,rebuild ..
+        -r ring on which run the check 
         -t interval between checks (if set to 0 will exit after first iteration)
 """
         print((message+add))
@@ -65,17 +65,17 @@ def parseargs(argv):
                         usage()
                         end(0)
                 elif opt == '-l':
-			dummy=arg.split(',')
+                        dummy=arg.split(',')
                         option.update(display=dummy)
                 elif opt == '-t':
                         option.update(timer=arg)
-		elif opt == '-o':
-			option.update(outfile=True)
+                elif opt == '-o':
+                        option.update(outfile=True)
                 elif opt == '-r':
                         option.update(ring=arg)
         #if len(args) > 0:
         #       for i in args:
-	return option
+        return option
 
 class ring_obj():
   """ class to manipulate ring objects"""
@@ -125,7 +125,7 @@ class ring_obj():
     print(line)
     if self.outfile:
       self.fd.write(line+"\n".encode("iso8859-1"))
-	
+
  
   def getconf(self):
     try:
@@ -147,7 +147,7 @@ class ring_obj():
     for task in self.tasks["tasks"]:
       logger.debug("Initial Task {0}".format(task))
       if  task['type'] == "rebuild" and int(task["flag_diskrebuild"]) != 0:
-    	  task['real_task'] = "repair"
+        task['real_task'] = "repair"
       else:
         task['real_task'] = task['type']
           #print "%s %s objects=%d/%d size=%d/%d dest=%s start=%d tid=%s" % (task["node"]["addr"], type_, int(task["done"]), int(task["total"]), int(task["size_done"]), int(task["est_size_total"]), task["dest"], int(task["starting_time"]), task["tid"])
@@ -180,11 +180,11 @@ class ring_obj():
           if cur not in list(self.valid_task.keys()):
             self.valid_task[cur]={}
           self.valid_task[cur][j['tid']]=j	
-	  done+=1
+    done+=0
     if done == 0:
-	print("No task to display ({0})".format(','.join(self.display)))
+      print("No task to display ({0})".format(','.join(self.display)))
     else:
-    	self.print_task_stat_chosen(cur)
+      self.print_task_stat_chosen(cur)
     return(done)
 
   ## self.valid_task[type][id]=task
@@ -224,7 +224,7 @@ class ring_obj():
 
           self.print_whats_needed("Task {0:<8} {1:<30} to {7:<20} cur {2:<12} prev {6:<12} total {3:<12} key/sec {4:<6} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest))
         else:
-      	  self.print_whats_needed("Task {0:<8} {1:<30} cur {2:<12} (prev) {6:<12} total {3:<12} key/sec {4:<6} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev))
+          self.print_whats_needed("Task {0:<8} {1:<30} cur {2:<12} (prev) {6:<12} total {3:<12} key/sec {4:<6} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev))
         self.prev[tid]['prev']=current
 
  
