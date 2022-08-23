@@ -1,0 +1,11 @@
+for R in $(ringsh supervisor ringList) ; do ringsh supervisor nodeJoinAll $R ; done
+echo 'waiting for ring to join'
+sleep 30 
+salt -G roles:ROLE_CONN_CDMI  service.restart scality-dewpoint-fcgi 
+salt -G roles:ROLE_CONN_NFS  service.restart scality-sfused
+salt -G roles:ROLE_CONN_FUSE  service.restart scality-sfused
+salt -G roles:ROLE_CONN_CIFS  service.restart scality-sfused
+echo 'waiting for connector to join'
+sleep 30 
+salt -G roles:ROLE_CONN_CIFS  service.restart sernet-samba-smbd 
+

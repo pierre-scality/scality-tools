@@ -1,0 +1,24 @@
+#!/bin/bash
+
+VERSION=1.5.0
+USER=pierre.merle
+
+rpm -qs python36 > /dev/null
+if [ $? -ne 0 ] ; then
+echo "installing python36"
+yum install python36
+else
+echo "python36 ok"
+fi
+
+set -e 
+
+printf 'User %s passwd : ' $USER
+read -s PASS
+printf '\nGetting Artesca %s\n' $VERSION
+curl --fail -sLo artesca-installer https://packages.scality.com/Artesca/$VERSION/artesca-installer -u $USER:$PASS || echo "ERROR"
+curl --fail -sLo SHA256SUM https://packages.scality.com/Artesca/$VERSION/SHA256SUM -u $USER:$PASS || echo "ERROR"
+sha256sum -c SHA256SUM
+chmod +x ./artesca-installer 
+./artesca-installer get -P $PASS --username $USER
+

@@ -1,0 +1,54 @@
+
+USERNAME=pierre
+FIRSTNAME=pierre
+LASTNAME=pierre
+EMAIL=pierre.merle@scality.com
+
+INSTANCE_ID=$(kubectl --kubeconfig /etc/kubernetes/admin.conf get -n zenko zenko artesca-data -o jsonpath='{.status.instanceID}')
+if [ "A$INSTANCE_ID" == "A" ] ; then 
+echo "Cant retrieve instance id" 
+exit
+else
+echo "Instance ID $INSTANCE_ID, continue ?"
+read dummy
+fi
+
+kubectl --kubeconfig=/etc/kubernetes/admin.conf \
+  exec --stdin --namespace artesca-auth keycloak-0 -- \
+  /opt/jboss/keycloak/bin/kcadm.sh  \
+  create users \
+  --target-realm artesca \
+  --file - <<EOF
+  {
+    "username": "${USERNAME}",
+    "enabled": true,
+    "emailVerified": true,
+    "firstName": "${FIRSTNAME}",
+    "lastName": "${LASTNAME}",
+    "email": "${EMAIL}",
+    "attributes": {
+      "instanceIds": ["${INSTANCE_ID}"],
+      "role": ["user"]
+    },
+    "clientRoles": {
+      "account": ["view-profile", "manage-account"]
+    },
+    "notBefore": 0,
+    "groups": []
+  }
+  EOF
+
+kubectl --kubeconfig=/etc/kubernetes/admin.conf \
+  exec --stdin --namespace artesca-auth keycloak-0 -- \
+  /opt/jboss/keycloak/bin/kcadm.sh  \
+  set-password --temporary \
+  --target-realm artesca \
+  --username ${USERNAME}
+
+kubectl --kubeconfig=/etc/kubernetes/admin.conf \
+  exec --stdin --namespace artesca-auth keycloak-0 -- \
+  /opt/jboss/keycloak/bin/kcadm.sh  \
+  add-roles \
+  --target-realm artesca \
+  --uusername ${USERNAME} \
+  --rolename <role>

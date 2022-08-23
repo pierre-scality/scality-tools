@@ -1,0 +1,6 @@
+# Make sure to change {b..n} to the proper device name.
+
+for i in {b..n} ; do parted /dev/vd$i rm 1 ; done 
+for i in {b..n} ; do wipefs -fa  /dev/vd$i  ; done 
+lsblk
+

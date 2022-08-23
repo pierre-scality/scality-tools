@@ -1,0 +1,3 @@
+H=$(salt-call metalk8s_network.get_control_plane_ingress_endpoint --output=json | jq ".local"|sed s/\"//g )
+echo "URL = $H/auth/admin/master/console/#/realms/artesca"
+
