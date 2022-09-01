@@ -27,7 +27,7 @@ try:
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
   parser.add_argument('-s', '--server', default="localhost" , help='Display a given raft session menbers')
   parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
-  parser.add_argument('-w', '--wsb', dest='wsb',default=None ,help='Set the WSB ip to add to the query (in dev)')
+  parser.add_argument('-w', '--wsb', dest='wsb',default=None ,help='Set the WSB ip to add to the query for watch functionality')
   #args=parser.parse_args()
 except SystemExit:
 #  bad = sys.exc_info()[1]
@@ -421,14 +421,19 @@ class Raft():
             url="http://{}:{}/_/raft/state".format(h,p)
             q=self.query_url(url) 
             rez[dn]=q
+      wsbindex=1
       if self.wsb != None:
         wsblist=self.getWsbList()
         for wsb in wsblist:
+          display.debug("Adding wsb session {}".format(wsblist))
           url="http://{}:{}/_/raft/state".format(wsb,p)
-          q=self.query_url(url) 
-          dn="{}:{} (wsb)".format(wsb,p-100)
+          q=self.query_url(url)
+          wsblabel="(wsb-{})".format(wsbindex)
+          wsblabel=wsblabel.ljust(14," ")
+          dn="{}:{} {}".format(wsb,p-100,wsblabel)
           rez[dn]=q
-      for i in rez.keys():
+          wsbindex+=1
+      for i in sorted(rez.keys()):
         display.raw("{} : {}".format(i,rez[i]))
       display.raw("")
       time.sleep(float(tt))
