@@ -2,7 +2,7 @@
 
 import json
 import sys 
-if len(sys.argv[0]) > 1:
+if len(sys.argv) > 1:
   file=sys.argv[1]
 else:
   file="/root/topology.json"
