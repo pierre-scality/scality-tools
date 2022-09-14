@@ -83,75 +83,81 @@ else:
   file=cli[0]
 
 
+class Inventory():
+  def __init__(self,invfile="/srv/scality/s3/s3-offline/federation/env/s3config/inventory"):
+    self.invfile=invfile
+    self.fd=self.open_env()
+    self.inv={}
+    self.wsb=[]
 
-def open_env(invfile):
-  display.verbose("Opening {}".format(file))
-  try:
-    fd=open(file)
-  except FileNotFoundError:
-    display.error("Can't open file {}".format(file))
-    exit(9)
-  return(fd)
+  def open_env(self):
+    display.verbose("Opening {}".format(self.invfile))
+    try:
+      fd=open(self.invfile)
+    except FileNotFoundError:
+      display.error("Can't open file {}".format(self.invfile))
+      exit(9)
+    return(fd)
 
-def parse_env(fd):
-  sect='default'
-  inv={}
-  server={}
-  wsb=[]
-  inv[sect]=[]
-  for line in fd.readlines():
-    if line[0] == "#":
-      continue
-    if len(line) == 1:
-      continue
-    if line[0] == '[':
-      sect=line[1:].split(']')[0].rstrip()
-      display.debug("New section {}".format(sect))
-      inv[sect]=[]
-      continue
-    else:
-      display.debug("add in section {} :  {}".format(sect,line.rstrip()))
-      entry=line.rstrip()
-      if entry in server.keys():
-        display.debug("Matched {} and {}".format(entry,server[entry]))
-        entry="{} ({})".format(entry,server[entry]) 
-      inv[sect].append(entry) 
-    if sect == 'default':
-      explode=line.split()
-      s=explode[0]
-      n=explode[1].split("=")[1]
-      display.debug("s3 name : {} realname : {}".format(s,n))
-      server[s]=n
-      if s[:3] == 'wsb':
-        display.debug("Adding {} to wsb list {}".format(n,wsb))
-        wsb.append(n)
-  return(inv,wsb)
+  def parse_env(self):
+    sect='default'
+    self.inv[sect]=[]
+    server={}
+    for line in self.fd.readlines():
+      if line[0] == "#":
+        continue
+      if len(line) == 1:
+        continue
+      if line[0] == '[':
+        sect=line[1:].split(']')[0].rstrip()
+        display.debug("New section {}".format(sect))
+        self.inv[sect]=[]
+        continue
+      else:
+        display.debug("add in section {} :  {}".format(sect,line.rstrip()))
+        entry=line.rstrip()
+        if entry in server.keys():
+          display.debug("Matched {} and {}".format(entry,server[entry]))
+          entry="{} ({})".format(entry,server[entry]) 
+        self.inv[sect].append(entry) 
+      if sect == 'default':
+        explode=line.split()
+        s=explode[0]
+        n=explode[1].split("=")[1]
+        display.debug("s3 name : {} realname : {}".format(s,n))
+        server[s]=n
+        if s[:3] == 'wsb':
+          display.debug("Adding {} to wsb list {}".format(n,self.wsb))
+          self.wsb.append(n)
+    display.debug("sections found {}".format(self.inv.keys()))
+    return()
 
-def display_inv(inv,section=[]): 
-  for sect in inv.keys():
-    if section == [] or sect in section:
-      print("[{}]".format(sect))
-      for val in inv[sect]:
-        print(val)
-  return(0)
+  def display_inv(self,section=[]): 
+    display.debug("Entering display_inv keys {}".format(self.inv.keys()))
+    for sect in self.inv.keys():
+      if section == [] or sect in section:
+        print("[{}]".format(sect))
+        for val in self.inv[sect]:
+          print(val)
+    return(0)
+
+  def display_wsb(self):
+    display.debug("Wsb server list : {}".format(self.wsb)),
+    wsbstr=""
+    for i in self.wsb:
+      if wsbstr != "":
+        wsbstr=wsbstr+","+i
+      else:
+        wsbstr+=i
+    display.raw(wsbstr)
+
+  
 
 def main(file):
-  fd=open_env(file)
-  messyinput,wsb=parse_env(fd)
-  display.debug("sections found {}".format(messyinput.keys()))
-  #for i in messyinput.keys():
-  #  print("section {} : \n".format(i))
-  # print(messyinput[i])
-  display_inv(messyinput,["minority","majority"])
-  print("Wsb server list : "),
-  wsbstr=""
-  for i in wsb:
-    if wsbstr != "":
-      wsbstr=wsbstr+","+i
-    else:
-      wsbstr+=i
-  print(wsbstr)
-
+  inventory=Inventory()
+  inventory.parse_env()
+  inventory.display_inv(["minority","majority"])
+  inventory.display_wsb()
 if __name__ == '__main__':
   main(file)
 else:
