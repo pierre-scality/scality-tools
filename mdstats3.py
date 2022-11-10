@@ -22,12 +22,13 @@ try:
   mdstat.py -s server1 session                => Get the leader for each session 
   mdstat.py -s server1 session <session id>   => Display information about this specific session (from the leader) 
   mdstat.py -s server1 bucket <bucketname>    => Display the raft session for the bucket with servers and seq details
-  mdstat.py -s server1 watch  <session id>  <interval>  => Display seq numbers about a give raft session
+  mdstat.py -s server1 watch  <session id>  <interval>  => Display seq numbers about a give raft session 
 ''')
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
   parser.add_argument('-s', '--server', default="localhost" , help='Display a given raft session menbers')
   parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
   parser.add_argument('-w', '--wsb', dest='wsb',default=None ,help='Set the WSB ip to add to the query for watch functionality')
+  parser.add_argument('-i', '--ignore', dest='ignore',action="store_true", default=False ,help='Ignore connection error.')
   #args=parser.parse_args()
 except SystemExit:
 #  bad = sys.exc_info()[1]
@@ -209,6 +210,7 @@ class Raft():
     self.raftsession={}
     self.raft=raft
     self.wsb=args.wsb
+    self.ignore=args.ignore
     self.RAFTCOUNT=9
     self.RAFTMBR=5
 
@@ -220,9 +222,13 @@ class Raft():
     try:
       r = requests.get(url)
     except requests.exceptions.RequestException as e:
-      display.error("Error connecting to : {0}".format(url))
-      display.debug("Error is  : \n{0}\n".format(e))
-      exit(1)
+      if self.ignore:
+        display.verbose("Ignore error connecting to : {0}".format(url))
+        return(None)
+      else:
+        display.error("Error connecting to : {0}".format(url))
+        display.debug("Error is  : \n{0}\n".format(e))
+        exit(1)
     if r.status_code == 200:
       #status=json.loads(r.text)
       return(r.text)
