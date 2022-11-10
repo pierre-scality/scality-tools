@@ -341,6 +341,9 @@ class Raft():
     display.debug("Entering function getRaftAll")
     url="http://"+str(self.server)+":9000/_/raft_sessions/"
     out=self.query_url(url)
+    if out == None:
+      display.error("Error analyse {}".format(url))
+      return(None)
     out=json.loads(out)
     for i in out:
       session=i['id']
