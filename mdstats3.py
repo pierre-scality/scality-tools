@@ -24,6 +24,7 @@ try:
   mdstat.py -s server1 bucket <bucketname>    => Display the raft session for the bucket with servers and seq details
   mdstat.py -s server1 watch  <session id>  <interval>  => Display seq numbers about a give raft session 
 ''')
+  parser.add_argument('-a', '--all', dest='all', action="store_true", default=False ,help='Display all raft sessions members for this host')
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
   parser.add_argument('-s', '--server', default="localhost" , help='Display a given raft session menbers')
   parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
@@ -51,6 +52,10 @@ class Command():
 
   def getCmd(self):
     display.debug("Running getCmd with arg {0}".format(self.args))
+    if self.raft.getAll():
+      sessions=self.raft.getAllSessions()
+      self.printAllSessions(sessions)
+      return(0)
     if len(self.args) == 0:
       self.raft.getSessionLeaders()
       return(0)
@@ -97,6 +102,19 @@ class Command():
         timer=int(self.remaining[1])
         self.raft.watchRaft(rs,timer)
     return(0) 
+
+  def printAllSessions(self,sessions):
+    display.debug("print All sessions : \n {} \n".format(sessions))
+    s=json.loads(sessions)
+    a=1
+    hosts=[]
+    for e in s:
+      id=e['id']
+      for i in e['raftMembers']:
+        hosts.append(i['host'])
+      print("{:<2d}: {}".format(id,hosts))
+      hosts=[]
+    return(0)
 
   def doBucketOperation(self):
     display.debug("Running doBucketOperation {0} {1}".format(self.bucket,self.query))
@@ -213,9 +231,22 @@ class Raft():
     self.ignore=args.ignore
     self.RAFTCOUNT=9
     self.RAFTMBR=5
+    self.all=args.all
 
   def setServer(self):
     display.verbose("Using {0} as endpoint".format(self.server))
+
+  def getAll(self):
+    return(self.all)
+
+  def getAllSessions(self):
+    display.debug("Entering function getAllSessions")
+    url="http://"+str(self.server)+":9000/_/raft_sessions/"
+    out=self.query_url(url)
+    if out == None:
+      display.error("Error analyse {}".format(url))
+      return(None)
+    return(out)
 
   def query_url(self,url,fatal=False):
     display.verbose("Querying url {}".format(url))
