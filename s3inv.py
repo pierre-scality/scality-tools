@@ -3,6 +3,10 @@
 import argparse
 import configparser
 
+import salt.client
+import salt.config
+import ipaddress
+
 DEFAULT="/srv/scality/s3/s3-offline/federation/env/s3config/inventory"
 
 try:
@@ -11,10 +15,15 @@ try:
   Display inventory file based information. 
   By default it will display WSB servers and Majority/Minority setting if any
   Use -a to add md or s3 with -a "s3 md"
+  You can also set salt grains corresponding to the inventory.
+  set will set the grains, get read the grains and dry will show what a set would do
+  s3inv.py -s set
 ''')
-  parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
-  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
   parser.add_argument('-a', '--argument', dest='argument', default=None ,help='Specify which section you want to see. Take list and display if section exists')
+  parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
+  parser.add_argument('-l', '--list', dest='list', action="store_true", default=False ,help='list sections of the inventory')
+  parser.add_argument('-s', '--salt', dest='salt', default=None, choices=['set', 'get', 'dry'], help='manage salt grains from inventory can be set/get/dry')
+  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
 except SystemExit:
   exit(9)
 
@@ -92,9 +101,26 @@ class Inventory():
     self.invfile=invfile
     self.fd=self.open_env()
     self.inv={}
-    self.wsb=[]
-    self.argument=args
-
+    self.list=args.list
+    self.argument=args.argument
+    if args.salt != None:
+      self.process_grains()
+ 
+  def process_grains(self):
+    self.parse_env()
+    print(self.inv['default'])
+    invlist={}
+    for i in self.inv['default']:
+      l=split(i)
+    target='*'
+    
+    display.verbose("process grains for {}".format(target))
+    saltquery = salt.client.LocalClient()
+    self.grains=saltquery.cmd(target,'grains.items') 
+    for i in self.grains.keys():
+      print("{} -> {}".format(i,self.grains[i]['ip4_interfaces']))
+    exit(0)
+ 
   def open_env(self):
     display.verbose("Opening {}".format(self.invfile))
     try:
@@ -107,6 +133,7 @@ class Inventory():
   def parse_env(self):
     sect='default'
     self.inv[sect]=[]
+    self.inv['wsb']=[]
     server={}
     for line in self.fd.readlines():
       if line[0] == "#":
@@ -132,13 +159,18 @@ class Inventory():
         display.debug("s3 name : {} realname : {}".format(s,n))
         server[s]=n
         if s[:3] == 'wsb':
-          display.debug("Adding {} to wsb list {}".format(n,self.wsb))
-          self.wsb.append(n)
+          display.debug("Adding {} to wsb list {}".format(n,self.inv['wsb']))
+          self.inv['wsb'].append(n)
+          #self.wsb.append(n)
     display.debug("sections found {}".format(self.inv.keys()))
+    if self.list:
+      for i in self.inv.keys():
+        display.raw(i)
+      exit(0)
     return()
 
   def display_inv(self,section=[]): 
-    display.debug("Entering display_inv keys {}".format(self.inv.keys()))
+    display.debug("Entering display_inv keys {} in {}".format(section,self.inv.keys()))
     for sect in self.inv.keys():
       if section == [] or sect in section:
         print("[{}]".format(sect))
@@ -159,23 +191,21 @@ class Inventory():
     self.display_inv(l)  
 
   def display_wsb(self):
-    display.debug("Wsb server list : {}".format(self.wsb)),
+    display.debug("Wsb server list : {}".format(self.inv['wsb'])),
     wsbstr=""
-    for i in self.wsb:
+    for i in self.inv['wsb']:
       if wsbstr != "":
         wsbstr=wsbstr+","+i
       else:
         wsbstr+=i
     display.raw("[WSB]\n{}".format(wsbstr))
 
-  
-
 def main(file):
-  inventory=Inventory(args=args.argument)
+  inventory=Inventory(args)
   inventory.parse_env()
   inventory.display_inv(["minority","majority"])
+  inventory.display_inv(["wsb"])
   inventory.display_args()
-  inventory.display_wsb()
 if __name__ == '__main__':
   main(file)
 else:
