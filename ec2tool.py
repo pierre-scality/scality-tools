@@ -4,8 +4,12 @@ import boto3
 import argparse 
 import re
 
+# local params
 REGION='ap-northeast-1'
 OWNER='pierre.merle@scality.com'
+
+# script variables
+EC2ACTION=('start','stop','terminate')
 
 # Generic class for display messages with level
 class Msg():
@@ -62,12 +66,14 @@ class Msg():
 display=Msg()
 
 try:
-  parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description='''
-  Display and start ec2 instances
+  prgdesc='''
+  Display and trigger actions against ec2 instances
   ec2tools.py                                 => No args display all machines for a given owner (hardcoded for now)
-  ec2tools.py start <expr>                    => Start machines matching pattern for a given owner (hardcoded for now)
+  ec2tools.py <action> <expr>                    => Start machines matching pattern for a given owner (hardcoded for now)
         --> expr is a string that will be matched against the instance name tag
-''')
+'''
+  prgdesc+="\n possible action are {}\n".format(EC2ACTION)
+  parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=prgdesc)
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
   parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
 except SystemExit:
@@ -84,6 +90,7 @@ class MyEc2():
   def __init__(self):
     display.debug("init ec2")
     self.ec2 = boto3.client('ec2',REGION)
+    self.target = []
 
   def query_all(self):
     display.debug("enter ec2query_all")
@@ -91,35 +98,68 @@ class MyEc2():
     response = self.ec2.describe_instances()
     return(response)
 
-  def ec2kickstart(self,list,ask=True):
+  def filter(self,cli,instances):
+    if cli == []:
+      display_result(instances)
+      exit(0)
+    elif cli[0]  in EC2ACTION:
+      if len(cli) < 2:
+        display.error("With {} you need to speficy a pattern".format(cli[0]),fatal=True)
+      self.ec2filter(instances,cli[1])
+      self.ec2action(cli[0])
+      exit(0)
+    else:
+        display.error("Unknow param {}".format(cli),fatal=True)
+   
+  def ec2action(self,action,ask=True):
+    display.debug("ec2action with {}".format(action))
     l=""
     tostart=[]
     count=0
     if ask: 
-      for i in list:
+      for i in self.target:
         tostart.append(i[0])
         if count == 0:
           l+="{}".format(i[1])
         else:
           l+=" {}".format(i[1])
         count+=1
-      display.info("Do you want to start this {} vm(s) ? (ctrl C to abort)\n{}\n".format(count,l))
-      answer=input()
-      s=self.ec2.start_instances(InstanceIds=tostart)
+      #display.info("Do you want to {} this {} vm(s) ? (ctrl C to abort)\n{}\n".format(action,count,l))
+      msg=("Do you want to {} this {} vm(s) ? (ctrl C to abort)\n{}".format(action,count,l))
+      answer=askme(msg)
+      if action == 'start':
+        s=self.ec2.start_instances(InstanceIds=tostart)
+      elif action == 'stop':
+        s=self.ec2.stop_instances(InstanceIds=tostart)
+      elif action == 'terminate':
+        #display.info("Do you really want to terminate {}.\nType 'yes' to confirm : ".format(tostart))
+        question="Do you really want to terminate {}.\nType 'yes' to confirm : ".format(tostart)
+        confirm=askme(text=question)
+        if confirm == 'yes':
+          s=self.ec2.terminate_instances(InstanceIds=tostart)
+        else:
+          display.info("Termination aborted")
+          exit(0)
+      else:
+        display.error("Action not implemented",fatal=True)
       display.debug("Result {}".format(s))
     exit() 
   
-  def ec2start(self,instances,pattern):
-    display.debug("Start instance")
-    display.verbose("Starting machines with pattern {}".format(pattern))
-    tostart=[]
+  def ec2filter(self,instances,pattern,field='Name'):
+    display.debug("Filter instance")
     for i in instances:
-      name=instances[i]['Name']
+      name=instances[i][field]
       display.debug("matching {} {}".format(pattern,name))
       if re.search(pattern,name):
-        tostart.append((i,name))
-    self.ec2kickstart(tostart)
+        self.target.append((i,name))
 
+def askme(text="",thanks='ByeBye'):
+  try:
+    answer=input("{:15} : {} : ".format('QUERY',text))
+  except KeyboardInterrupt:
+    print(thanks)
+    exit(0)
+  return(answer) 
 
 def extract_tag(tags,query):
   display.debug("enter extract_tag")
@@ -150,9 +190,11 @@ def parse_result(rez,owner=True):
       id=e['InstanceId']
       d[id]={}
       d[id]['State']=e['State']['Name'] 
+      if 'PublicIpAddress' in e.keys():
+        d[id]['PublicIpAddress']=e['PublicIpAddress']
       t=extract_tag(e['Tags'],tag_query)
-      for e in t.keys():
-        d[id][e]=t[e]
+      for tag in t.keys():
+        d[id][tag]=t[tag]
       if owner:
         d=strip_owner(d,OWNER)
   return(d)
@@ -170,28 +212,18 @@ def display_result(dict):
       display.verbose("error {}".format(e))
       continue
     if dict[e]['owner'] == OWNER:
-      str="instance {} State : {} Name : {:{L}} Owner : {} Autostop : {}".format(e,dict[e]['State'],dict[e]['Name'],dict[e]['owner'],dict[e]['lifecycle_autostop'],L=maxl)
+      str="{} State : {:10} Name : {:{L}} Owner : {} Autostop : {}".format(e,dict[e]['State'],dict[e]['Name'],dict[e]['owner'],dict[e]['lifecycle_autostop'],L=maxl)
+      if 'PublicIpAddress' in dict[e].keys():
+        str="{} : EIP {}".format(str,dict[e]['PublicIpAddress'])
       display.raw(str)
-
-def action(cli,instances,ec2):
-  if cli == []:
-    display_result(instances)
-    exit(0)
-  elif cli[0] == 'start':
-    if len(cli) < 2:
-      display.fatal("With start you need to speficy a pattern")
-    ec2.ec2start(instances,cli[1])
-    exit(0)
-  else:
-      display.fatal("Unknow param {}".format(cli))
-      
+     
 
 def main():
   display.debug("cli {}".format(cli))
   ec2=MyEc2()
   rez=ec2.query_all()
   instances=parse_result(rez)
-  action(cli,instances,ec2)
+  ec2.filter(cli,instances)
 
 if __name__ == '__main__':
   main()
