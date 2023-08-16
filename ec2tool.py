@@ -201,6 +201,7 @@ def parse_result(rez,owner=True):
     
  
 def display_result(dict):
+  sdict={}
   maxl=20
   for e in dict:
     if 'owner' in dict[e].keys():
@@ -211,11 +212,15 @@ def display_result(dict):
     if 'owner' not in dict[e].keys():
       display.verbose("error {}".format(e))
       continue
+    display.debug("Instance {}".format(dict[e]))
     if dict[e]['owner'] == OWNER:
       str="{} State : {:10} Name : {:{L}} Owner : {} Autostop : {}".format(e,dict[e]['State'],dict[e]['Name'],dict[e]['owner'],dict[e]['lifecycle_autostop'],L=maxl)
       if 'PublicIpAddress' in dict[e].keys():
         str="{} : EIP {}".format(str,dict[e]['PublicIpAddress'])
-      display.raw(str)
+      sdict[dict[e]['Name']]=str
+
+  for e in sorted(sdict.keys()):
+    display.raw(sdict[e])
      
 
 def main():
