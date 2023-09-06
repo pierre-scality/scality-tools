@@ -3,10 +3,26 @@
 import boto3
 import argparse 
 import re
+import os
 
 # local params
+SUPPORTEDREGION=['eu-north-1','us-west-2','ap-northeast-1','ap-southeast-2']
 REGION='ap-northeast-1'
 OWNER='pierre.merle@scality.com'
+
+try:
+  REGION=os.environ['MYREGION']
+except KeyError:
+  REGION=REGION
+
+try:
+  REGION=os.environ['MYOWNER']
+except KeyError:
+  OWNER=OWNER
+
+
+
+
 
 # script variables
 EC2ACTION=('start','stop','terminate')
@@ -103,8 +119,9 @@ class MyEc2():
       display_result(instances)
       exit(0)
     elif cli[0]  in EC2ACTION:
+      display.debug("Action found {} for {}".format(cli[0],cli,fatal=True))
       if len(cli) < 2:
-        display.error("With {} you need to speficy a pattern".format(cli[0]),fatal=True)
+        display.error("With {} you need to speficy a pattern".format(cli[0],fatal=True))
       self.ec2filter(instances,cli[1])
       self.ec2action(cli[0])
       exit(0)
@@ -125,6 +142,9 @@ class MyEc2():
           l+=" {}".format(i[1])
         count+=1
       #display.info("Do you want to {} this {} vm(s) ? (ctrl C to abort)\n{}\n".format(action,count,l))
+      if count == 0:
+        display.info("No machine selected")
+        exit(0)
       msg=("Do you want to {} this {} vm(s) ? (ctrl C to abort)\n{}".format(action,count,l))
       answer=askme(msg)
       if action == 'start':
