@@ -88,10 +88,11 @@ try:
   ec2tools.py <action> <expr>                    => Start machines matching pattern for a given owner (hardcoded for now)
         --> expr is a string that will be matched against the instance name tag
 '''
-  prgdesc+="\n possible action are {}\n".format(EC2ACTION)
+  prgdesc+="\n  Possible action are {}\n".format(EC2ACTION)
+  prgdesc+="  Region/User hardcoded you can use env variable MYREGION/MYOWNER.\n  Supported regions are : {}".format(SUPPORTEDREGION)
   parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=prgdesc)
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
-  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='It will display the request to repd')
+  parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='verbose mode')
 except SystemExit:
   exit(9)
 
