@@ -20,10 +20,6 @@ try:
 except KeyError:
   OWNER=OWNER
 
-
-
-
-
 # script variables
 EC2ACTION=('start','stop','terminate')
 
@@ -92,6 +88,7 @@ try:
   prgdesc+="  Region/User hardcoded you can use env variable MYREGION/MYOWNER.\n  Supported regions are : {}".format(SUPPORTEDREGION)
   parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=prgdesc)
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
+  parser.add_argument('-r', '--region', dest='region', help='Set script in DEBUG mode ')
   parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='verbose mode')
 except SystemExit:
   exit(9)
@@ -104,14 +101,15 @@ if args.debug==True:
 
 
 class MyEc2():
-  def __init__(self):
-    display.debug("init ec2")
-    self.ec2 = boto3.client('ec2',REGION)
+  def __init__(self,region=REGION):
+    display.verbose("init ec2, region {}".format(region))
+    self.ec2 = boto3.client('ec2',region)
     self.target = []
+    self.region = region
 
   def query_all(self):
     display.debug("enter ec2query_all")
-    display.info("Getting instances list")
+    display.info("Getting instances list {}".format(self.region))
     response = self.ec2.describe_instances()
     return(response)
 
@@ -120,9 +118,9 @@ class MyEc2():
       display_result(instances)
       exit(0)
     elif cli[0]  in EC2ACTION:
-      display.debug("Action found {} for {}".format(cli[0],cli,fatal=True))
+      display.debug("Action found {} for {}".format(cli[0],cli))
       if len(cli) < 2:
-        display.error("With {} you need to speficy a pattern".format(cli[0],fatal=True))
+        display.error("With {} you need to speficy a pattern".format(cli[0]),fatal=True)
       self.ec2filter(instances,cli[1])
       self.ec2action(cli[0])
       exit(0)
@@ -245,13 +243,18 @@ def display_result(dict):
      
 
 def main():
-  display.debug("cli {}".format(cli))
-  ec2=MyEc2()
+  display.debug("cli {} args {}".format(cli,args))
+  ec2=MyEc2(REGION)
   rez=ec2.query_all()
   instances=parse_result(rez)
   ec2.filter(cli,instances)
 
 if __name__ == '__main__':
+  if args.region != None:
+    display.debug("Change region to {}".format(args.region))
+    if args.region not in SUPPORTEDREGION:
+      display.warning("{} not in {}, likely to fail".format(args.region,SUPPORTEDREGION))
+    REGION=args.region
   main()
 else:
   print("loaded")
