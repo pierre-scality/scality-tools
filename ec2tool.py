@@ -1,6 +1,7 @@
 #!/bin/python3 
 
 import boto3
+import botocore
 import argparse 
 import re
 import os
@@ -109,6 +110,11 @@ class MyEc2():
 
   def query_all(self):
     display.debug("enter ec2query_all")
+    if cli != []:
+      if cli[0]  not in EC2ACTION:
+        display.error("Unknow param {}".format(cli),fatal=True)
+      if len(cli) < 2:
+        display.error("With {} you need to speficy a pattern".format(cli[0]),fatal=True)
     display.info("Getting instances list {}".format(self.region))
     response = self.ec2.describe_instances()
     return(response)
@@ -118,23 +124,19 @@ class MyEc2():
       display_result(instances)
       exit(0)
     elif cli[0]  in EC2ACTION:
-      display.debug("Action found {} for {}".format(cli[0],cli))
-      if len(cli) < 2:
-        display.error("With {} you need to speficy a pattern".format(cli[0]),fatal=True)
-      self.ec2filter(instances,cli[1])
+      display.debug("Run {} for {}".format(cli[0],cli))
+      self.ec2filter(instances,cli[1:])
       self.ec2action(cli[0])
       exit(0)
-    else:
-        display.error("Unknow param {}".format(cli),fatal=True)
    
   def ec2action(self,action,ask=True):
     display.debug("ec2action with {}".format(action))
     l=""
-    tostart=[]
+    managelist=[]
     count=0
     if ask: 
       for i in self.target:
-        tostart.append(i[0])
+        managelist.append(i[0])
         if count == 0:
           l+="{}".format(i[1])
         else:
@@ -147,15 +149,23 @@ class MyEc2():
       msg=("Do you want to {} this {} vm(s) ? (ctrl C to abort)\n{}".format(action,count,l))
       answer=askme(msg)
       if action == 'start':
-        s=self.ec2.start_instances(InstanceIds=tostart)
+        try:
+          s=self.ec2.start_instances(InstanceIds=managelist)
+        except botocore.exceptions.ClientError as e:
+          display.error("Cant {} {} \n{}".format(action,managelist,e),fatal=True)
       elif action == 'stop':
-        s=self.ec2.stop_instances(InstanceIds=tostart)
+        try:
+          s=self.ec2.stop_instances(InstanceIds=managelist)
+        except botocore.exceptions.ClientError as e:
+          display.error("Cant {} {} \n{}".format(action,managelist,e),fatal=True)
       elif action == 'terminate':
-        #display.info("Do you really want to terminate {}.\nType 'yes' to confirm : ".format(tostart))
-        question="Do you really want to terminate {}.\nType 'yes' to confirm : ".format(tostart)
+        question="Do you really want to terminate {}.\nType 'yes' to confirm : ".format(managelist)
         confirm=askme(text=question)
         if confirm == 'yes':
-          s=self.ec2.terminate_instances(InstanceIds=tostart)
+          try:
+            s=self.ec2.terminate_instances(InstanceIds=managelist)
+          except botocore.exceptions.ClientError as e:
+            display.error("Cant {} {} \n{}".format(action,managelist,e),fatal=True)
         else:
           display.info("Termination aborted")
           exit(0)
@@ -164,13 +174,14 @@ class MyEc2():
       display.debug("Result {}".format(s))
     exit() 
   
-  def ec2filter(self,instances,pattern,field='Name'):
-    display.debug("Filter instance")
+  def ec2filter(self,instances,matchlist,field='Name'):
+    display.debug("Filter instance {}".format(matchlist))
     for i in instances:
       name=instances[i][field]
-      display.debug("matching {} {}".format(pattern,name))
-      if re.search(pattern,name):
-        self.target.append((i,name))
+      for pattern in matchlist:
+        display.debug("matching {} {}".format(pattern,name))
+        if re.search(pattern,name):
+          self.target.append((i,name))
 
 def askme(text="",thanks='ByeBye'):
   try:
