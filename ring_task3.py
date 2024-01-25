@@ -1,4 +1,4 @@
-#!/usr/bin/python -u
+#!/usr/bin/python3 -u
 
 import sys
 import logging 
@@ -10,6 +10,7 @@ from datetime import datetime
 sys.path.append('/usr/local/scality-ringsh/ringsh/modules')
 sys.path.append('/usr/local/scality-ringsh/ringsh')
 sys.path.append('/etc/scality-ringsh/')
+sys.path.append('/etc/scality/ringsh/')
 from scality.node import Node
 from scality.supervisor import Supervisor
 from scality.daemon import DaemonFactory
