@@ -1,11 +1,11 @@
 #!/usr/bin/python3 -u
 
 import sys
-import logging 
+import logging
 import time
 import getopt
 import json
-from datetime import datetime 
+from datetime import datetime
 
 sys.path.append('/usr/local/scality-ringsh/ringsh/modules')
 sys.path.append('/usr/local/scality-ringsh/ringsh')
@@ -15,25 +15,26 @@ from scality.node import Node
 from scality.supervisor import Supervisor
 from scality.daemon import DaemonFactory
 
+logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
+logger = logging.getLogger()
+PRGNAME=sys.argv[0]
 CREDFILE="/tmp/scality-installer-credentials"
+
 try:
-  print("Loading cred file")
+  logging.debug("Loading cred file")
   d=open(CREDFILE,'r')
   cred=json.load(d)
   l=cred['internal-management-requests']['username']
   p=cred['internal-management-requests']['password']
   d.close()
 except IOError:
-  print("can't open cred file")
+  logging.debug("can't open cred file")
   l="root"
-  p="5vvou3rIjDc8" 
+  p="5vvou3rIjDc8"
 
 u="https://localhost:2443"
 ring="DATA"
 
-logging.basicConfig(format='%(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
-logger = logging.getLogger()
-PRGNAME=sys.argv[0]
 
 def usage():
         message="""
@@ -44,7 +45,7 @@ def usage():
         usage : """+PRGNAME
         add="""
         -l list of task to display tasks (default move), list list move,rebuild ..
-        -r ring on which run the check 
+        -r ring on which run the check
         -t interval between checks (if set to 0 will exit after first iteration)
 """
         print((message+add))
@@ -81,6 +82,8 @@ def parseargs(argv):
 class ring_obj():
   """ class to manipulate ring objects"""
   def __init__(self,option,ring="DATA",url="https://127.0.0.1:2443",l=None,p=None):
+    self.tasklist=[]
+    self.sort=None
     import config as ringsh_config
     if 'ring' in option:
       self.ring=option['ring']
@@ -118,7 +121,7 @@ class ring_obj():
     try:
       self.fd=open("./"+self.outfile,'w')
     except IOError as e:
-      print("cant open log file {0}".format(e))					 
+      print("cant open log file {0}".format(e))
       exit(9)
     print("Opening log file {0}".format("./"+self.outfile))
 
@@ -127,7 +130,7 @@ class ring_obj():
     if self.outfile:
       self.fd.write(line+"\n".encode("iso8859-1"))
 
- 
+
   def getconf(self):
     try:
       self.config=self.sup.supervisorConfigDso(action="view",dsoname=self.ring)
@@ -136,7 +139,7 @@ class ring_obj():
       print(err)
       sys.exit(1)
     logger.debug("Get conf for ring : {0}".format(self.ring))
-  
+
   ## build task list dict ordered by task
   def get_task_list(self,type="all"):
     dict={}
@@ -167,9 +170,9 @@ class ring_obj():
           logger.debug('Displaying task type detail {0}'.format(str(j.keys)))
     return(0)
 
-  ## from task dict build a valid_task dict with [task type][task id] for display 
-  def task_filter(self,type="all"): 
-    logger.debug("Enter print_task_filter {0}".format(self.display))
+  ## from task dict build a valid_task dict with [task type][task id] for display
+  def task_filter(self,type="all"):
+    logger.debug("Enter print_task_filter {0}\n{1}".format(self.display,self.task))
     if all in self.display:
       self.display=['all']
     done=0
@@ -180,8 +183,8 @@ class ring_obj():
         if cur in self.display or self.display[0]=="all":
           if cur not in list(self.valid_task.keys()):
             self.valid_task[cur]={}
-          self.valid_task[cur][j['tid']]=j	
-    done+=0
+          self.valid_task[cur][j['tid']]=j
+          done+=1
     if done == 0:
       print("No task to display ({0})".format(','.join(self.display)))
     else:
@@ -193,16 +196,16 @@ class ring_obj():
     for type in sorted(self.valid_task.keys()):
      for id in sorted(self.valid_task[type].keys()):
       task=self.valid_task[type][id]
-      logger.debug("Enter print_task_stat_chosen {0}".format(str(task)))
+      logger.debug("Enter print_task_stat_chosen {}".format(str(task)))
       d=datetime.now().strftime('%d%m:%H%M%S')
       node=task['node']['name']
       total=int(task['total'])
       current=int(task['done'])
       remain=total-current
-      print(d+" ", end=' ')
       tid=task['tid']+":"+node
       if not tid in list(self.prev.keys()):
-        self.print_whats_needed("Task {0:<10} {1:<35} current {2:<8} total {3:<8} NEW TASK".format(type,tid,current,total))
+        #thistask="{} {} {} {} {} {} {}".format(type,tid,current,False,total,keysec,int(timetogo)).split()
+        self.print_whats_needed("{} Task {:<10} {:<35} current {:<8} total {:<8} NEW TASK".format(d,type,tid,current,total))
         self.prev[tid]={}
         self.prev[tid]['prev']=current
       else:
@@ -210,27 +213,99 @@ class ring_obj():
         keysec=((current-prev)/self.timer)
         keytogo=total-current
         if keysec == 0:
-          timetogo = 'undefined'
+          timetogo = -1
         else:
           timetogo=keytogo/keysec/60
         if type == 'move':
-          dest=str(task['dest'])
+          #dest=str(task['dest'])
           logger.debug("task is  {0}".format(task))
-          if dest != "auto":
-            ip,port=dest.split(":")
-            hostn=socket.gethostbyaddr(ip)[0]
-            hostn=hostn.split('-')[0]
-            nport=int(port)-4244+1
-            dest=str(ring+"-"+hostn+"-n"+str(nport))
-
-          self.print_whats_needed("Task {0:<8} {1:<30} to {7:<20} cur {2:<12} prev {6:<12} total {3:<12} key/sec {4:<6} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev,dest))
+          thistask="{} {} {} {} {} {} {}".format(type,tid,current,prev,total,keysec,int(timetogo)).split()
         else:
-          self.print_whats_needed("Task {0:<8} {1:<30} cur {2:<12} (prev) {6:<12} total {3:<12} key/sec {4:<6} time to go {5} minutes".format(type,tid,current,total,keysec,timetogo,prev))
+          thistask="{} {} {} {} {} {} {}".format(type,tid,current,prev,total,keysec,int(timetogo)).split()
         self.prev[tid]['prev']=current
+        self.tasklist.append(thistask)
+    if self.tasklist != []:
+      #self.task
+      self.print_pretty_task()
+    self.tasklist=[]
 
- 
+  # only compare node with id:node format
+  def sort_task(self):
+    logger.debug("sorting {}".format(self.tasklist))
+    # need to manage id:node
+    sort_field=1
+    out_list=[]
+    for a in self.tasklist:
+      if out_list == []:
+        out_list.append(a)
+      else:
+        idx=0
+        compare=a[sort_field].split(':')[1]
+        for b in out_list:
+          added=False
+          #print("compare {} > {}".format( b[sort_field].split(':')[1],compare))
+          if b[sort_field].split(':')[1] > compare:
+            out_list.insert(idx,a)
+            added=True
+            break
+          else:
+            idx+=1
+          # adding at the end if the list
+        if not added:
+          out_list.append(a)
+    return out_list
+
+  def print_pretty_task(self,status=True):
+    logger.debug("print_pretty list : {0}".format(self.tasklist))
+    d=datetime.now().strftime('%d%m:%H%M%S')
+    self.sort="node"
+    #print(self.tasklist)
+    local_task_list=[]
+    task_ct={}
+    keysec_ct={}
+    if self.sort != None:
+      local_task_list=self.sort_task()
+    else:
+      local_task_list=self.tasklist
+    for e in local_task_list:
+      logger.debug("print_pretty : {0}".format(e))
+      current=e[2]
+      prev=e[3]
+      total=e[4]
+      type=e[0]
+      if type not in task_ct.keys():
+        keysec_ct[type]=0
+        task_ct[type]=0
+      task_ct[type]+=1
+      if prev == False:
+        self.print_whats_needed("[ {} ] Task {0:<10} {1:<35} current {2:<8} total {3:<8} NEW TASK".format(d,type,tid,current,total))
+        continue
+      keysec=int(float(e[5]))
+      keysec_ct[type]+=keysec
+      #if type == 'move':
+      end="undefined"
+      if e[6] == -1:
+        end='undefined'
+        continue
+      estime=float(e[6])
+      if estime < 24*60:
+        end="{:>6} minutes".format(int(estime))
+      else:
+        end="{:>6} minutes ({} days)".format(int(estime),round((estime/(24*60)),2))
+      #else:
+      #  end="{:<6} minutes {} days {:<2} weeks".format(estime,int(estime/(24*60)),int(estime/(24*60*7)))
+      self.print_whats_needed("{} Task {:<7} {:<39} cur {:<12} prev {:<12} total {:<12} key/sec {:<4} time to go {}".format(d,type,e[1],e[2],e[3],e[4],keysec,end))
+    #else:
+    #  self.print_whats_needed("{} Task {:<8} {:<39} cur {:<12} (prev) {:<12} total {:<12} key/sec {:<6} time to go {} minutes".format(d,type,e[1],e[2],e[3],e[4],int(e[5])))
+    if len(task_ct) >0 and status:
+      line="Summary [ interval {} sec ] : ".format(self.timer)
+      for e in task_ct.keys():
+        line+="{} [ task count {} total keys/sec {}] ".format(e,task_ct[e],keysec_ct[e])
+      self.print_whats_needed(line)
+
+
   def wait_iter(self):
-    time.sleep(self.timer) 
+    time.sleep(self.timer)
     print()
 
 def main():
@@ -241,7 +316,7 @@ def main():
     o.get_task_list()
     #o.print_task()
     o.task_filter()
-    o.wait_iter()  
+    o.wait_iter()
   sys.exit(0)
 
 if __name__ == '__main__':
