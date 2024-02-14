@@ -1,4 +1,4 @@
-#!/usr/bin/python3 -u
+!/usr/bin/python3 -u
 
 import sys
 import logging
@@ -82,9 +82,10 @@ def parseargs(argv):
 class ring_obj():
   """ class to manipulate ring objects"""
   def __init__(self,option,ring="DATA",url="https://127.0.0.1:2443",l=None,p=None):
+    import config as ringsh_config
     self.tasklist=[]
     self.sort=None
-    import config as ringsh_config
+    self.ring_params=[]
     if 'ring' in option:
       self.ring=option['ring']
     else:
@@ -139,6 +140,15 @@ class ring_obj():
       print(err)
       sys.exit(1)
     logger.debug("Get conf for ring : {0}".format(self.ring))
+    # to get chordtasks_sendlimit/chordtasks_recvlimit
+    self.ring_params=self.config['params']
+
+  def get_conf_param(self,param):
+    for i in self.ring_params:
+      if i[0] == param:
+        return(i[1])
+    return None
+
 
   ## build task list dict ordered by task
   def get_task_list(self,type="all"):
@@ -204,8 +214,10 @@ class ring_obj():
       remain=total-current
       tid=task['tid']+":"+node
       if not tid in list(self.prev.keys()):
-        #thistask="{} {} {} {} {} {} {}".format(type,tid,current,False,total,keysec,int(timetogo)).split()
-        self.print_whats_needed("{} Task {:<10} {:<35} current {:<8} total {:<8} NEW TASK".format(d,type,tid,current,total))
+        thistask="{} {} {} {} {}".format(type,tid,current,'New',total).split()
+        #self.print_whats_needed("{} Task {:<10} {:<35} current {:<8} total {:<8} NEW TASK".format(d,type,tid,current,total))
+        #thistask="{} {} {} {} {}".format(type,tid,current,total,'NEW')).split()
+        self.tasklist.append(thistask)
         self.prev[tid]={}
         self.prev[tid]['prev']=current
       else:
@@ -216,12 +228,12 @@ class ring_obj():
           timetogo = -1
         else:
           timetogo=keytogo/keysec/60
-        if type == 'move':
+        #if type == 'move':
           #dest=str(task['dest'])
-          logger.debug("task is  {0}".format(task))
-          thistask="{} {} {} {} {} {} {}".format(type,tid,current,prev,total,keysec,int(timetogo)).split()
-        else:
-          thistask="{} {} {} {} {} {} {}".format(type,tid,current,prev,total,keysec,int(timetogo)).split()
+        logger.debug("task is  {0}".format(task))
+        thistask="{} {} {} {} {} {} {}".format(type,tid,current,prev,total,keysec,int(timetogo)).split()
+        #else:
+        #  thistask="{} {} {} {} {} {} {}".format(type,tid,current,prev,total,keysec,int(timetogo)).split()
         self.prev[tid]['prev']=current
         self.tasklist.append(thistask)
     if self.tasklist != []:
@@ -257,7 +269,7 @@ class ring_obj():
 
   def print_pretty_task(self,status=True):
     logger.debug("print_pretty list : {0}".format(self.tasklist))
-    d=datetime.now().strftime('%d%m:%H%M%S')
+    d=datetime.now().strftime('%y%m%d:%H%M%S')
     self.sort="node"
     #print(self.tasklist)
     local_task_list=[]
@@ -269,20 +281,20 @@ class ring_obj():
       local_task_list=self.tasklist
     for e in local_task_list:
       logger.debug("print_pretty : {0}".format(e))
+      type=e[0]
+      tid=e[1]
       current=e[2]
       prev=e[3]
       total=e[4]
-      type=e[0]
       if type not in task_ct.keys():
         keysec_ct[type]=0
         task_ct[type]=0
       task_ct[type]+=1
-      if prev == False:
-        self.print_whats_needed("[ {} ] Task {0:<10} {1:<35} current {2:<8} total {3:<8} NEW TASK".format(d,type,tid,current,total))
+      if prev == 'New':
+        self.print_whats_needed("[ {} ] Task {:<5} {:<39} cur {:<12} total {:<12} NEW TASK".format(d,type,tid,current,total))
         continue
       keysec=int(float(e[5]))
       keysec_ct[type]+=keysec
-      #if type == 'move':
       end="undefined"
       if e[6] == -1:
         end='undefined'
@@ -294,11 +306,12 @@ class ring_obj():
         end="{:>6} minutes ({} days)".format(int(estime),round((estime/(24*60)),2))
       #else:
       #  end="{:<6} minutes {} days {:<2} weeks".format(estime,int(estime/(24*60)),int(estime/(24*60*7)))
-      self.print_whats_needed("{} Task {:<7} {:<39} cur {:<12} prev {:<12} total {:<12} key/sec {:<4} time to go {}".format(d,type,e[1],e[2],e[3],e[4],keysec,end))
+      self.print_whats_needed("[ {} ] Task {:<7} {:<39} cur {:<12} prev {:<12} total {:<12} key/sec {:<4} time to go {}".format(d,type,e[1],e[2],e[3],e[4],keysec,end))
     #else:
     #  self.print_whats_needed("{} Task {:<8} {:<39} cur {:<12} (prev) {:<12} total {:<12} key/sec {:<6} time to go {} minutes".format(d,type,e[1],e[2],e[3],e[4],int(e[5])))
     if len(task_ct) >0 and status:
-      line="Summary [ interval {} sec ] : ".format(self.timer)
+      sendlimit,receivelimit=self.get_conf_param('chordtasks_sendlimit'),self.get_conf_param('chordtasks_recvlimit')
+      line="[ {} ] Summary [ interval {} | send/recv =  {}/{} ] : ".format(d,self.timer,sendlimit,receivelimit)
       for e in task_ct.keys():
         line+="{} [ task count {} total keys/sec {}] ".format(e,task_ct[e],keysec_ct[e])
       self.print_whats_needed(line)
