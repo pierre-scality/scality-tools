@@ -1,5 +1,24 @@
-In Dev do not use on prod
+* Introduction
+In Dev do not use on prod. Not yet completed missing the disk rebuild part.
+
 Tool use to replace/rebuild scality disk in place.
 It could be used to reformat local drive if wrong setting is set on the LUN
 
 There is a "VM" option to run the tool on AWS machines.
+The RUN variable is to prevent destructive action 
+
+Can stop / start the device..
+
+* scripts
+** Main script to eventually do all ops  
+''
+backupdrive.sh
+''
+
+** side scripts for testing 
+''
+startdisk.sh
+stopdisk.sh
+''
+startdisk mount disk remove flag etc ...  
+stopdisk do the opposite
