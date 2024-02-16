@@ -1,0 +1,5 @@
+In Dev do not use on prod
+Tool use to replace/rebuild scality disk in place.
+It could be used to reformat local drive if wrong setting is set on the LUN
+
+There is a "VM" option to run the tool on AWS machines.
