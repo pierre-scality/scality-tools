@@ -3,7 +3,7 @@
 # VM is to enable testing on VM (replacing ssacli part)
 VM=yes 
 RING=DATA
-
+STEP=yes
 
 if [ $# -ne 1 ]; then
 echo 'need disk'
@@ -102,6 +102,10 @@ fi
 cd
 du -sh $DUMPDIR/$TARGET.tar
 
+if [ $STEP == 'yes' ]; then 
+echo 'disk umounted, do you want to continue to rebuild device'
+read dummy
+fi
 # rebuilding device
 echo "Rebuilding device $DEVICE mounted on $TARGETMP disk $TARGET UUID $UUID"
 umount $TARGETMP
@@ -124,7 +128,25 @@ $RUN parted -s ${NEW_DEVICE} mklabel gpt
 $RUN parted -s ${NEW_DEVICE} mkpart primary 1 100%
 $RUN mkfs.ext4 -m 0 ${NEW_DEVICE}
 $RUN tune2fs -c0 -C0 -m0 -i0 ${NEW_DEVICE}
+NEWUUID=$(lsblk -o +UUID $NEW_DEVICE)
+NEW_DEVICE_CHECK=$(blkid -U $NEWUUID)
+if [ ${NEW_DEVICE} != ${NEW_DEVICE_CHECK} ]; then
+  echo "error matching device ${NEW_DEVICE} and ${NEW_DEVICE_CHECK} for UUID ${NEWUUID}"
+else
+  echo "New device ${NEW_DEVICE} UUID ${NEWUUID}"
+fi
+echo "Changing fstab"
+sed "s/${UUID}/${NEWUUID}/" /etc/fstab
+grep -s $NEWUUID /etc/fstab
+if [ $? -ne 0 ]; then
+  echo "ERROR entry not in fstab"
+  exit
+fi
 
+if [ $STEP == 'yes' ]; then 
+echo 'disk rebuild and mounted, do you want to continue to mount and enable service ? '
+read dummy
+fi
 # sed old uuid to new uuid
 systemctl daemon-reload
 mount $TARGETMP
