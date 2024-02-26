@@ -1,0 +1,12 @@
+[Unit]
+Description=spawn loop device based disks
+Before=local-fs-pre.target
+DefaultDependencies=no
+
+[Service]
+ExecStart=/bin/bash /root/spawn_disks.sh
+User=root
+Group=root
+
+[Install]
+WantedBy=local-fs-pre.target
