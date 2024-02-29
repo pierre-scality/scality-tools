@@ -5,6 +5,7 @@ VM=yes
 RING=DATA
 STEP=yes
 SCALDIR=/scality/
+DUMPDISK=yes
 
 if [ $# -ne 1 ]; then
 echo "INFO : you need to specify the disk name (the path $SCALDIR will be used)"

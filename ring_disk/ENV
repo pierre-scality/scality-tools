@@ -5,6 +5,7 @@ DATA=$DUMPDIR/$TARGET.fstab
 TARGET=g1disk01 
 TARGETMP=/scality/g1disk01 
 T=$TARGET
+D=$TARGET
 ROOT_DEVICE=/dev/nvme3n1
 NEW_DEVICE=/dev/nvme3n1p1
 DEVICE=/dev/nvme3n1p1
