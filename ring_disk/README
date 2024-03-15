@@ -25,6 +25,8 @@ backupdrive.sh
 ''
 startdisk.sh
 stopdisk.sh
+ENV
 ''
 startdisk mount disk remove flag etc ...  
 stopdisk do the opposite
+ENV is to set the script variable to test the command on cli
