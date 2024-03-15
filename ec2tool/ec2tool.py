@@ -177,7 +177,10 @@ class MyEc2():
   def ec2filter(self,instances,matchlist,field='Name'):
     display.debug("Filter instance {}".format(matchlist))
     for i in instances:
-      name=instances[i][field]
+      try:
+        name=instances[i][field]
+      except KeyError:
+        display.info("Machine {} has no name".format(i)) 
       for pattern in matchlist:
         display.debug("matching {} {}".format(pattern,name))
         if re.search(pattern,name):
@@ -235,19 +238,26 @@ def display_result(dict):
   maxl=20
   for e in dict:
     if 'owner' in dict[e].keys():
-      if len(dict[e]['Name']) > maxl:
-        maxl=len(dict[e]['Name'])
+      try:
+        if len(dict[e]['Name']) > maxl:
+          maxl=len(dict[e]['Name'])
+      except KeyError:
+        display.verbose('Hostname not found') 
        
   for e in dict:
     if 'owner' not in dict[e].keys():
       display.verbose("error {}".format(e))
       continue
     display.debug("Instance {}".format(dict[e]))
+    if not 'Name' in dict[e]:
+      this_name="No Name"
+    else:
+      this_name=dict[e]['Name']
     if dict[e]['owner'] == OWNER:
-      str="{} State : {:10} Name : {:{L}} Owner : {} Autostop : {}".format(e,dict[e]['State'],dict[e]['Name'],dict[e]['owner'],dict[e]['lifecycle_autostop'],L=maxl)
+      str="{} State : {:10} Name : {:{L}} Owner : {} Autostop : {}".format(e,dict[e]['State'],this_name,dict[e]['owner'],dict[e]['lifecycle_autostop'],L=maxl)
       if 'PublicIpAddress' in dict[e].keys():
         str="{} : EIP {}".format(str,dict[e]['PublicIpAddress'])
-      sdict[dict[e]['Name']]=str
+      sdict[this_name]=str
 
   for e in sorted(sdict.keys()):
     display.raw(sdict[e])
