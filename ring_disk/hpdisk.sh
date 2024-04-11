@@ -1,5 +1,3 @@
-
-[root@scality-sup Scality]# cat hpdisk.sh
 #!/bin/bash
 
 VERBOSE=yes

@@ -1,6 +1,32 @@
 * Introduction
 In Dev do not use on prod. Not yet completed missing the disk rebuild part.
 
+
+* Latest version 
+The latest code is in funcreplacedisk.sh which is written with function to be merged with ssacli code.
+
+It can be run as a full replacement : 
+''
+./funcreplacedisk.sh all scality g1disk01
+''
+
+or run in invididual steps see the script helper :
+''
+./funcreplacedisk.sh <operation> <target disk path> <disk name>
+example : ./funcreplacedisk.sh backup scality g1disk01 
+Args are : 
+prepare   -> stop and get the disk ready to be replaced 
+backup    -> backup the disk content to /var/tmp/dumpdisk/ 
+rebuild   -> Rebuild the disk 
+restore   -> Restore disk content
+all       -> run all the steps
+
+''
+
+
+* Older version 
+replacedisk.sh is the former version with a bunch of tools to ease testing.
+
 Tool use to replace/rebuild scality disk in place.
 It could be used to reformat local drive if wrong setting is set on the LUN
 
