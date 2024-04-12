@@ -1,13 +1,15 @@
 #!/bin/bash
 
 # VM is to enable testing on VM (replacing ssacli part)
-P1=yes     # if set to yes it will assume the partition are created as p1 and not 1 (device /dev/nvme3n1 partition 1  /dev/nvme3n1p1)
+DUMPDIR=/var/tmp/dumpdisk/
+P1=yes             # if set to yes it will assume the partition are created as p1 and not 1 (device /dev/nvme3n1 partition 1  /dev/nvme3n1p1)
 RING=DATA
-STEP=no  # It will pause and ask for confirmation to continue. Must be set to no to be skipped
-REMOVEBACKUP=yes    # automatically remove tar file after disk is done
+STEP=no            # It will pause and ask for confirmation to continue. Must be set to no to be skipped
+REMOVEBACKUP=no    # automatically remove tar file after disk is done
 VERBOSE=no
 INFO=yes
-TARCPSIZE=50000 # checkpoint size for tar output
+TARCPSIZE=50000    # checkpoint size for tar output (if pv not used)
+PVINT=1            # pv display interval for tar task monitoring 
 TODO=$1
 shift
 
@@ -30,7 +32,7 @@ RUN=
 
 
 LOG=/tmp/diskreplace.out
-DUMPDIR=/var/tmp/dumpdisk/
+
 TIMER=3
 
 # this function will just stop and wait for keyb input to go on if $STEP is not set to no
@@ -90,7 +92,7 @@ if [ $? != 0 ]; then
 fi
 
 UUID=$(lsblk $DEVICE -o UUID -n)
-info "INFO : Verifying fstab $UUID  ${TARGET}"
+info "Verifying fstab $UUID  ${TARGET}"
 info $(grep $UUID /etc/fstab | grep -w ${TARGET_MP})
 if [ $? -ne 0 ]; then
   echo "error verif fstab"
@@ -151,6 +153,8 @@ SCAL_MP=$1
 TARGET=$2
 TARGET_MP=/${SCAL_MP}/${TARGET}
 
+info "backing up $TARGET to $DUMPDIR"
+
 t1=$(date '+%s')
 cd $TARGET_MP
 confirm "Taring disk with tar cf $DUMPDIR/${TARGET}.tar from $(pwd)"
@@ -158,7 +162,8 @@ if [ $(pwd) != ${TARGET_MP} ]; then
   echo "error moving in ${TARGET_MP}"
   exit
 else
-  tar cf $DUMPDIR/${TARGET}.tar --checkpoint=$TARCPSIZE --checkpoint-action=echo="%s %u" .
+  tar cf - . | pv -i $PVINT -barte -s $(df . | awk 'END {print $3*1024}') > $DUMPDIR/${TARGET}.tar
+  #tar cf $DUMPDIR/${TARGET}.tar --checkpoint=$TARCPSIZE --checkpoint-action=echo="%s %u" .
 fi
 if [ $? -ne 0 ] ; then
   echo "error taring tar cf $DUMPDIR/${TARGET}.tar"
@@ -281,7 +286,10 @@ TARGET=$2
 TARGET_MP=/${SCAL_MP}/${TARGET}
 
 fail_root_dev ${TARGET_MP}
-
+scality-iod status $TARGET 
+if [ $? -eq 0 ]; then 
+  error "Disk $TARGET is running when we want to restore"
+fi
 
 # Restore data
 if [ ! -f $DUMPDIR/${TARGET}.tar ] ; then
@@ -295,7 +303,8 @@ else
   fi
 fi
 confirm "restore tar from $(pwd)"
-tar xf $DUMPDIR/${TARGET}.tar --checkpoint=$TARCPSIZE --checkpoint-action=echo="%s %u"
+pv -i $PVINT -barte $DUMPDIR/${TARGET}.tar | tar xf -
+#tar xf $DUMPDIR/${TARGET}.tar --checkpoint=$TARCPSIZE --checkpoint-action=echo="%s %u"
 if [ ! -f .${TARGET} ] ; then 
   echo "ERROR witness file missing. Check disk restore data"
   exit
@@ -328,7 +337,7 @@ confirm "Do you want to remove backup $DUMPDIR/${TARGET}.tar"
 info "Removing $DUMPDIR/${TARGET}.tar"
 rm $DUMPDIR/${TARGET}.tar
 else 
-echo "Manually remove backoup : $DUMPDIR/${TARGET}.tar"
+echo "Manually remove backup : $DUMPDIR/${TARGET}.tar"
 fi
 }
 
