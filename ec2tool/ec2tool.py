@@ -214,7 +214,7 @@ def parse_result(rez,owner=True):
   display.debug("enter parse_result")
   d={}
   t={}
-  tag_query=['owner','Name','lifecycle_autostop']
+  tag_query=['owner','Name','lifecycle_autostop','PrivateIpAddress']
   instances=rez['Reservations']
   for i in instances:
     z=i['Instances']
@@ -225,6 +225,8 @@ def parse_result(rez,owner=True):
       d[id]['State']=e['State']['Name'] 
       if 'PublicIpAddress' in e.keys():
         d[id]['PublicIpAddress']=e['PublicIpAddress']
+      if 'PrivateIpAddress' in e.keys():
+        d[id]['PrivateIpAddress']=e['PrivateIpAddress']
       t=extract_tag(e['Tags'],tag_query)
       for tag in t.keys():
         d[id][tag]=t[tag]
@@ -249,14 +251,18 @@ def display_result(dict):
       display.verbose("error {}".format(e))
       continue
     display.debug("Instance {}".format(dict[e]))
+    if dict[e]['State'] == "terminated":
+      continue
     if not 'Name' in dict[e]:
       this_name="No Name"
     else:
       this_name=dict[e]['Name']
     if dict[e]['owner'] == OWNER:
       str="{} State : {:10} Name : {:{L}} Owner : {} Autostop : {}".format(e,dict[e]['State'],this_name,dict[e]['owner'],dict[e]['lifecycle_autostop'],L=maxl)
+      if 'PrivateIpAddress' in dict[e].keys():
+        str="{} : Private {:16}".format(str,dict[e]['PrivateIpAddress'])
       if 'PublicIpAddress' in dict[e].keys():
-        str="{} : EIP {}".format(str,dict[e]['PublicIpAddress'])
+        str="{} [ EIP {} ]".format(str,dict[e]['PublicIpAddress'])
       sdict[this_name]=str
 
   for e in sorted(sdict.keys()):
