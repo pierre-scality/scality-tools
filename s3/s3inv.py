@@ -98,12 +98,16 @@ else:
 
 class Inventory():
   def __init__(self,args,invfile="/srv/scality/s3/s3-offline/federation/env/s3config/inventory"):
+    self.invgrains={'wsb':'ROLE_S3_WSB','runners_s3':'ROLE_S3_EP','runners_metadata':'ROLE_S3_MD'}
+    self.s3roles={}
+    self.server={}
     self.invfile=invfile
     self.fd=self.open_env()
     self.inv={}
     self.list=args.list
     self.argument=args.argument
     if args.salt != None:
+      self.salt=args.salt
       self.process_grains()
  
   def process_grains(self):
@@ -111,7 +115,7 @@ class Inventory():
     print(self.inv['default'])
     invlist={}
     for i in self.inv['default']:
-      l=split(i)
+      l=i.split()
     target='*'
     
     display.verbose("process grains for {}".format(target))
@@ -119,7 +123,20 @@ class Inventory():
     self.grains=saltquery.cmd(target,'grains.items') 
     for i in self.grains.keys():
       print("{} -> {}".format(i,self.grains[i]['ip4_interfaces']))
+    self.get_role_target()
     exit(0)
+
+  # for each host get the grain(s) to set
+  # host is the ansiblehost
+  def get_role_target(self):
+    for k in self.inv.keys():
+      print(k)
+      print(self.invgrains.keys())
+      if k in self.invgrains.keys():
+        self.s3roles[self.invgrains[k]]=self.inv[k]
+        print(self.s3roles)
+    for i in self.s3roles.keys():
+      print("{} : {}".format(i,self.s3roles[i]))
  
   def open_env(self):
     display.verbose("Opening {}".format(self.invfile))
@@ -134,7 +151,6 @@ class Inventory():
     sect='default'
     self.inv[sect]=[]
     self.inv['wsb']=[]
-    server={}
     for line in self.fd.readlines():
       if line[0] == "#":
         continue
@@ -148,19 +164,19 @@ class Inventory():
       else:
         display.debug("add in section {} :  {}".format(sect,line.rstrip()))
         entry=line.rstrip()
-        if entry in server.keys():
-          display.debug("Matched {} and {}".format(entry,server[entry]))
-          entry="{} ({})".format(entry,server[entry]) 
+        if entry in self.server.keys():
+          display.debug("Matched {} and {}".format(entry,self.server[entry]))
+          entry="{}:{}".format(entry,self.server[entry]) 
         self.inv[sect].append(entry) 
       if sect == 'default':
         explode=line.split()
         s=explode[0]
         n=explode[1].split("=")[1]
         display.debug("s3 name : {} realname : {}".format(s,n))
-        server[s]=n
+        self.server[s]=n
         if s[:3] == 'wsb':
           display.debug("Adding {} to wsb list {}".format(n,self.inv['wsb']))
-          self.inv['wsb'].append(n)
+          self.inv['wsb'].append("{}:{}".format(s,n))
           #self.wsb.append(n)
     display.debug("sections found {}".format(self.inv.keys()))
     if self.list:
@@ -200,11 +216,18 @@ class Inventory():
         wsbstr+=i
     display.raw("[WSB]\n{}".format(wsbstr))
 
+  def get_grains(self,target,grains):
+    display.verbose("Checking grains {0} on {1}".format(grains,target))
+    resp=local.cmd(target,'grains.get',[grains])
+    display.debug('response check {0} {1}'.format(target,resp))
+    return(resp)
+
+
 def main(file):
   inventory=Inventory(args)
   inventory.parse_env()
-  inventory.display_inv(["minority","majority"])
-  inventory.display_inv(["wsb"])
+  #inventory.display_inv(["minority","majority"])
+  #inventory.display_inv(["wsb"])
   inventory.display_args()
 if __name__ == '__main__':
   main(file)
