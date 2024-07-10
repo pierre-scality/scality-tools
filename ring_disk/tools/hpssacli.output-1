@@ -1,0 +1,989 @@
+
+HPE Smart Array P408i-p SR Gen10 in Slot 1
+
+   Array A
+
+      physicaldrive 1I:1:1
+         Port: 1I
+         Box: 1
+         Bay: 1
+         Status: OK
+         Drive Type: Data Drive
+         Interface Type: SAS
+         Size: 2 TB
+         Drive exposed to OS: False
+         Logical/Physical Block Size: 512/512
+         Rotational Speed: 7200
+         Firmware Revision: HPD2
+         Serial Number: WRE0H908
+         WWID: 5000C500F0AC6D9D
+         Model: HPE     MB002000JYDNE
+         Current Temperature (C): 27
+         Maximum Temperature (C): 30
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Sanitize Erase Supported: True
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000C500F0AC6D9F
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:2
+         Port: 1I
+         Box: 1
+         Bay: 2
+         Status: OK
+         Drive Type: Data Drive
+         Interface Type: SAS
+         Size: 2 TB
+         Drive exposed to OS: False
+         Logical/Physical Block Size: 512/512
+         Rotational Speed: 7200
+         Firmware Revision: HPD2
+         Serial Number: WRE0H7MF
+         WWID: 5000C500F0ACAF9D
+         Model: HPE     MB002000JYDNE
+         Current Temperature (C): 28
+         Maximum Temperature (C): 31
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Sanitize Erase Supported: True
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000C500F0ACAF9F
+         Self Encrypting Drive: False
+
+
+   Unassigned
+
+      physicaldrive 1I:1:3
+         Port: 1I
+         Box: 1
+         Bay: 3
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSYG5F
+         WWID: 5000CCA29463EA79
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 29
+         Maximum Temperature (C): 32
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdr 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk15
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk15
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 16 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29463EA78
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:4
+         Port: 1I
+         Box: 1
+         Bay: 4
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSZLDF
+         WWID: 5000CCA29463FB89
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 28
+         Maximum Temperature (C): 31
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sds 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk16
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk16
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 50 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29463FB88
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:5
+         Port: 1I
+         Box: 1
+         Bay: 5
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSAWDF
+         WWID: 5000CCA29462D395
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 29
+         Maximum Temperature (C): 32
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdt 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk17
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk17
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 5 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462D394
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:6
+         Port: 1I
+         Box: 1
+         Bay: 6
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSYHXF
+         WWID: 5000CCA29463EB51
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 32
+         Maximum Temperature (C): 34
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdu 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk18
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk18
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 32 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29463EB50
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:7
+         Port: 1I
+         Box: 1
+         Bay: 7
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSZLLF
+         WWID: 5000CCA29463FBA1
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 32
+         Maximum Temperature (C): 35
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdv 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk19
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk19
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 18 hour(s), 57 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29463FBA0
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:8
+         Port: 1I
+         Box: 1
+         Bay: 8
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSDGHF
+         WWID: 5000CCA29462EB5D
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 33
+         Maximum Temperature (C): 35
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdw 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk20
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk20
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 54 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462EB5C
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:9
+         Port: 1I
+         Box: 1
+         Bay: 9
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HT1AYF
+         WWID: 5000CCA2946415F5
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 32
+         Maximum Temperature (C): 35
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdx 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk21
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk21
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 18 hour(s), 11 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA2946415F4
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:10
+         Port: 1I
+         Box: 1
+         Bay: 10
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSMKRF
+         WWID: 5000CCA294635609
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 32
+         Maximum Temperature (C): 34
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdy 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk22
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk22
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 18 hour(s), 5 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294635608
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:11
+         Port: 1I
+         Box: 1
+         Bay: 11
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS7SRF
+         WWID: 5000CCA29462A4C1
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 35
+         Maximum Temperature (C): 38
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdz 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk23
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk23
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 11 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462A4C0
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:12
+         Port: 1I
+         Box: 1
+         Bay: 12
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSZNRF
+         WWID: 5000CCA29463FCA9
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 36
+         Maximum Temperature (C): 39
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdaa 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk24
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk24
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 20 hour(s), 16 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29463FCA8
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:13
+         Port: 1I
+         Box: 1
+         Bay: 13
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS7VDF
+         WWID: 5000CCA29462A60D
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 36
+         Maximum Temperature (C): 39
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdab 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk25
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk25
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 15 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462A60C
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:14
+         Port: 1I
+         Box: 1
+         Bay: 14
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS5PBF
+         WWID: 5000CCA294628595
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 36
+         Maximum Temperature (C): 39
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdac 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk26
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk26
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 23 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294628594
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:15
+         Port: 1I
+         Box: 1
+         Bay: 15
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS603F
+         WWID: 5000CCA294628A4D
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 35
+         Maximum Temperature (C): 38
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdad 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk27
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk27
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 51 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294628A4C
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:16
+         Port: 1I
+         Box: 1
+         Bay: 16
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS8EUF
+         WWID: 5000CCA29462AEF9
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 38
+         Maximum Temperature (C): 41
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdae 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk28
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk28
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 18 hour(s), 17 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462AEF8
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:17
+         Port: 1I
+         Box: 1
+         Bay: 17
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS4EWF
+         WWID: 5000CCA2946272F1
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 39
+         Maximum Temperature (C): 41
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdaf 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk29
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk29
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 18 hour(s), 29 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA2946272F0
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:18
+         Port: 1I
+         Box: 1
+         Bay: 18
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS669F
+         WWID: 5000CCA294628D4D
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 39
+         Maximum Temperature (C): 42
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdag 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk30
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk30
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 20 hour(s), 0 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294628D4C
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:19
+         Port: 1I
+         Box: 1
+         Bay: 19
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS5UAF
+         WWID: 5000CCA294628781
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 38
+         Maximum Temperature (C): 41
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdah 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk31
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk31
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 32 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294628780
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:20
+         Port: 1I
+         Box: 1
+         Bay: 20
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS617F
+         WWID: 5000CCA294628AD9
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 37
+         Maximum Temperature (C): 40
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdai 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk32
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk32
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 17 hour(s), 59 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294628AD8
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:21
+         Port: 1I
+         Box: 1
+         Bay: 21
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS79MF
+         WWID: 5000CCA294629DED
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 40
+         Maximum Temperature (C): 43
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdaj 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk33
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk33
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 29 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294629DEC
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:22
+         Port: 1I
+         Box: 1
+         Bay: 22
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS9A7F
+         WWID: 5000CCA29462BC41
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 41
+         Maximum Temperature (C): 44
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdak 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk34
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk34
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 28 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462BC40
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:23
+         Port: 1I
+         Box: 1
+         Bay: 23
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS998F
+         WWID: 5000CCA29462BBC9
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 42
+         Maximum Temperature (C): 45
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdal 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk35
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk35
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 34 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462BBC8
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:24
+         Port: 1I
+         Box: 1
+         Bay: 24
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HSE73F
+         WWID: 5000CCA29462F6CD
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 41
+         Maximum Temperature (C): 44
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdam 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk36
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk36
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 28 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462F6CC
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:25
+         Port: 1I
+         Box: 1
+         Bay: 25
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS5MXF
+         WWID: 5000CCA2946284E1
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 40
+         Maximum Temperature (C): 43
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdan 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk37
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk37
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 18 hour(s), 35 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA2946284E0
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:26
+         Port: 1I
+         Box: 1
+         Bay: 26
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS8AZF
+         WWID: 5000CCA29462AD99
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 43
+         Maximum Temperature (C): 46
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdao 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk38
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk38
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 18 hour(s), 31 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462AD98
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:27
+         Port: 1I
+         Box: 1
+         Bay: 27
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS638F
+         WWID: 5000CCA294628BD5
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 44
+         Maximum Temperature (C): 48
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdap 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk39
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk39
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 28 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294628BD4
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:28
+         Port: 1I
+         Box: 1
+         Bay: 28
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS6T8F
+         WWID: 5000CCA294629601
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 45
+         Maximum Temperature (C): 48
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdaq 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk40
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk40
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 5 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA294629600
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:29
+         Port: 1I
+         Box: 1
+         Bay: 29
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS9EJF
+         WWID: 5000CCA29462BDD9
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 44
+         Maximum Temperature (C): 48
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdar 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk41
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk41
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 48 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462BDD8
+         Self Encrypting Drive: False
+
+      physicaldrive 1I:1:30
+         Port: 1I
+         Box: 1
+         Bay: 30
+         Status: OK
+         Drive Type: Unassigned Drive
+         Interface Type: SAS
+         Size: 12 TB
+         Drive exposed to OS: True
+         Logical/Physical Block Size: 512/4096
+         Rotational Speed: 7200
+         Firmware Revision: HPD3
+         Serial Number: D5HS7G5F
+         WWID: 5000CCA29462A021
+         Model: HPE     MB012000JWDFD
+         Current Temperature (C): 43
+         Maximum Temperature (C): 46
+         PHY Count: 2
+         PHY Transfer Rate: 12.0Gbps, Unknown
+         PHY Physical Link Rate: 12.0Gbps, Unknown
+         PHY Maximum Link Rate: 12.0Gbps, 12.0Gbps
+         Drive Authentication Status: Not Applicable
+         Disk Name: /dev/sdas 
+         Mount Points: 10.9 TiB Partition   1 /scality/disk42
+         Disk Partition Information
+            Partition   1: Basic, 10.9 TiB, /scality/disk42
+         Sanitize Erase Supported: True
+         Sanitize Estimated Max Erase Time: 19 hour(s), 10 minute(s) 
+         Unrestricted Sanitize Supported: True
+         Shingled Magnetic Recording Support: None
+         Drive Unique ID: 5000CCA29462A020
+         Self Encrypting Drive: False
+
+
