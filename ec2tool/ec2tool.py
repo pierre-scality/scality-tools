@@ -17,7 +17,7 @@ except KeyError:
   REGION=REGION
 
 try:
-  REGION=os.environ['MYOWNER']
+  OWNER=os.environ['MYOWNER']
 except KeyError:
   OWNER=OWNER
 
@@ -159,7 +159,7 @@ class MyEc2():
         except botocore.exceptions.ClientError as e:
           display.error("Cant {} {} \n{}".format(action,managelist,e),fatal=True)
       elif action == 'terminate':
-        question="Do you really want to terminate {}.\nType 'yes' to confirm : ".format(managelist)
+        question="Do you really want to terminate {}.\nType 'yes' to confirm ".format(managelist)
         confirm=askme(text=question)
         if confirm == 'yes':
           try:
