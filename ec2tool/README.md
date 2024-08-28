@@ -8,10 +8,10 @@ The default region is ap-northeast-1 and user pierre.merle@scality.com
 You can change the region with -r flag
 
 You can also use environement variables to change both region and owner 
-'''
+```
 $ export MYOWNER=me.myself@scality.com 
 $ export MYREGION=us-east-1 
-'''
+```
 
 ## EC2 creds 
 Before running the tool you need to get creds from onelogin (ie : export AWS_ACCESS_KEY_ID="ASIAYKVURKFXQAAARYOQ" ...)
