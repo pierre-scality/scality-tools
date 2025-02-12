@@ -20,7 +20,7 @@ It should be working with aws sso setting as well.
 ## Usage 
 
 ```
-usage: ec2tool.py [-h] [-d] [-r REGION] [-v]
+usage: ec2tool.py [-h] [-d] [-o OWNER] [-r REGION] [-v]
 
   Display and trigger actions against ec2 instances
   ec2tools.py                                 => No args display all machines for a given owner (hardcoded for now)
@@ -28,20 +28,24 @@ usage: ec2tool.py [-h] [-d] [-r REGION] [-v]
         --> expr is a string that will be matched against the instance name tag
 
   Possible action are ('start', 'stop', 'terminate')
-  Region/User hardcoded you can use env variable MYREGION/MYOWNER.
-  Supported regions are : ['eu-north-1', 'us-west-2', 'ap-northeast-1', 'ap-southeast-2']
+  Region/User can be set with cli option or env variable MYREGION/MYOWNER.
+  Supported regions are : ['eu-north-1', 'us-west-2', 'ap-northeast-1', 'ap-southeast-2'] 
+  Owner is email
 
 options:
-  -h, --help            show this help message and exit
-  -d, --debug           Set script in DEBUG mode
-  -r REGION, --region REGION
-                        Set script in DEBUG mode
-  -v, --verbose         verbose mode
+  -h, --help           show this help message and exit
+  -d, --debug          Set script in DEBUG mode
+  -o, --owner OWNER    Specify the instances owner
+  -r, --region REGION  Set script in DEBUG mode
+  -v, --verbose        Verbose mode
 
 ```
 
+AWS call are using a region and name. To specify them you can use -o/-r options or simply setup environement variables. Cli options superseed env variables.
+
 ## Default view 
 When running command without option it will show you a view with all instances info belonging to the owner with the EIP when one is available and the autostop tag.
+EIP are shown with machines stopped only if you assigned one manually. Auto assigned are changing on each boot and only display when VM is running.
 
 ```
 Manjaro ec2tool  [master] $ ./ec2tool.py 
