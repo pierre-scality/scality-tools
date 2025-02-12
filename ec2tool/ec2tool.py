@@ -89,6 +89,7 @@ try:
   prgdesc+="  Region/User hardcoded you can use env variable MYREGION/MYOWNER.\n  Supported regions are : {}".format(SUPPORTEDREGION)
   parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=prgdesc)
   parser.add_argument('-d', '--debug', dest='debug', action="store_true", default=False ,help='Set script in DEBUG mode ')
+  parser.add_argument('-o', '--owner', dest='owner', help='Specify the instances owner')
   parser.add_argument('-r', '--region', dest='region', help='Set script in DEBUG mode ')
   parser.add_argument('-v', '--verbose', dest='verbose', action="store_true", default=False ,help='verbose mode')
 except SystemExit:
@@ -100,6 +101,8 @@ if args.verbose == True:
 if args.debug==True:
   display.set('debug')
 
+if args.owner != None:
+  OWNER=args.owner
 
 class MyEc2():
   def __init__(self,region=REGION):
