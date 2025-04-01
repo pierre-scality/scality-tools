@@ -161,7 +161,7 @@ class mynode():
         ctime = datetime.datetime.fromtimestamp(int(s.find("ctime").text)).strftime("%Y/%m/%d-%H:%M:%S")
         version = s.find("version").text
         dataversion = s.find("dataversion").text
-        crc = s.find("crc32").text
+        crc = "%X" % (int(s.find("crc32").text) & 0xffffffff,)
         size = s.find("size").text
         print("{} [ a {} | m {} | c {} ] {} {} {} {}".format(key,atime,mtime,ctime,version,dataversion,crc,size))
 
