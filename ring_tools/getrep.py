@@ -50,6 +50,7 @@ def usage():
   -s (print replica along with key)
   -S print key information  
   -x NuMBER (random key number)
+  -X Extended stat for the object
 """
   print((message+add))
 
@@ -60,7 +61,7 @@ def parseargs(argv):
   if len(argv)==1:
     k=sys.argv[1] 
   try:
-    opts, args = getopt.getopt(argv, "Adf:sSl:p:Pr:Rx:z", ["help"])
+    opts, args = getopt.getopt(argv, "Adf:sSl:p:Pr:RXx:z", ["help"])
   except getopt.GetoptError:
     print("Argument error")
     usage()
@@ -81,6 +82,8 @@ def parseargs(argv):
       for i in range(int(arg)):
         k=KeyRandom(COS).getHexPadded()
         keylist.append(k)
+    elif opt == '-X':
+      option.update(EXT=None)
     elif opt == '-p':
       option.update(p=None)
     elif opt == '-P':
@@ -113,8 +116,6 @@ def parseargs(argv):
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(funcName)s: %(message)s',level=logging.INFO)
 logger = logging.getLogger()
 
-if 'file' in option:
-  file=option['file']
 
 
 def printreplica(k):
@@ -133,7 +134,10 @@ class mynode():
     self.status={}
     self.rez=[]
     self.node=""
-
+    if 'EXT' in option.keys():
+      self.extended=True
+    else:
+      self.extended=False
     s = Supervisor(url=sup,login=login,passwd=password)
     ringstat=s.supervisorConfigDso(action="view", dsoname=ring)
     logger.info("Gathering ring informations")
@@ -219,13 +223,16 @@ class mynode():
         for i in zip:
           s=s+i
         print(K+":"+str(PRESENT)+":"+str(NOTPRESENT)+":"+s)
-      self.getExtKeyInfo(n,K)
+      if self.extended:
+        self.getExtKeyInfo(n,K)
 def main():
+  logger.debug("file".format(file))
   if file == None:
     for key in keylist :
       node.getkeyinfo(key)
   else:
     with open(file, 'r') as fd:
+      logger.debug("File opened : {0}".format(file))
       for key in fd:
         key=key.strip()
         #print key,len(key)
@@ -236,6 +243,8 @@ def main():
 
 if __name__ == '__main__':
   parseargs(sys.argv[1:])
+  if 'file' in option:
+    file=option['file']
   if "ring" in option :
     ring=option['ring']
   else:
