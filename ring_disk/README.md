@@ -57,4 +57,20 @@ WITNESSFILE        # Directory to store the witness files (see Concurrency)\
 You can run multiple install. The security is based on the witness files stored in /var/tmp\
 This files may be erased. Be careful when running multiple instance of the script.
 
+# Additionnal tool hpdisk.sh 
+This tool was developped to test the ssacli interface with bash scripts.
 
+Following line will create a RAID0 device on the given pd
+'''
+./hpdisk.sh build 2 1I:1:55 
+'''
+
+Following line show the pd for a mounted disk 
+'''
+./hpdisk.sh pd 2 /scality/disk01
+'''
+
+Following line will create fs and mount a free device and mount it
+'''
+./hpdisk.sh prepare 2 /scality/disk01
+'''
